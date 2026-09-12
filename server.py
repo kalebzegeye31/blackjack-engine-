@@ -11,11 +11,14 @@ Standard library only, so it works on any Python 3.8+.
 """
 
 import argparse
+import errno
 import json
 import mimetypes
 import os
 import random
 import re
+import socket
+import subprocess
 import threading
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -720,6 +723,62 @@ class Handler(BaseHTTPRequestHandler):
         return self.send_json(run_calculator(account_id, data))
 
 
+def whoever_has(port):
+    """
+    Which process is on this port, if we can find out without extra packages.
+
+    lsof is on every Mac and most Linuxes. If it isn't here, or the port belongs
+    to another user, we just say less rather than guessing.
+    """
+    try:
+        out = subprocess.run(["lsof", "-nP", "-iTCP:%d" % port, "-sTCP:LISTEN"],
+                             capture_output=True, text=True, timeout=5).stdout
+    except (OSError, subprocess.SubprocessError):
+        return None
+    for line in out.splitlines()[1:]:
+        parts = line.split()
+        if len(parts) >= 2 and parts[1].isdigit():
+            return {"command": parts[0], "pid": int(parts[1])}
+    return None
+
+
+def free_port(host):
+    """A port nothing is listening on, so the advice we give actually works."""
+    with socket.socket() as probe:
+        try:
+            probe.bind((host, 0))
+            return probe.getsockname()[1]
+        except OSError:
+            return 8001
+
+
+def report_port_taken(host, port):
+    """
+    Say what happened in words, because the traceback for this is misleading.
+
+    Nine times in ten it is this same program, still running from earlier, and
+    the right move is to open it rather than start a second one.
+    """
+    owner = whoever_has(port)
+    url = "http://%s:%d" % ("localhost" if host == "127.0.0.1" else host, port)
+
+    print("\n  Port %d is already in use, so there is nothing to start." % port)
+    if owner and "ython" in owner["command"]:
+        print("\n  It looks like this is the trainer, already running "
+              "(process %d)." % owner["pid"])
+        print("  Open it:            %s" % url)
+        print("  Or stop it first:   kill %d" % owner["pid"])
+    elif owner:
+        print("\n  %s (process %d) is holding it \u2014 not this program."
+              % (owner["command"], owner["pid"]))
+        print("  Use another port:   python3 server.py --port %d" % free_port(host))
+    else:
+        print("\n  Something else is holding it. Either open %s in case that is" % url)
+        print("  this program already running, or use another port:")
+        print("  python3 server.py --port %d" % free_port(host))
+    print()
+
+
 def main():
     ap = argparse.ArgumentParser(description="Blackjack basic strategy trainer")
     ap.add_argument("--port", type=int, default=8000)
@@ -731,11 +790,20 @@ def main():
     for acct in db.list_accounts():
         reconcile(acct["id"])
 
-    httpd = ThreadingHTTPServer((args.host, args.port), Handler)
+    try:
+        httpd = ThreadingHTTPServer((args.host, args.port), Handler)
+    except OSError as exc:
+        if exc.errno != errno.EADDRINUSE:
+            raise
+        report_port_taken(args.host, args.port)
+        raise SystemExit(1)
+
     url = "http://%s:%d" % ("localhost" if args.host == "127.0.0.1" else args.host, args.port)
     print("\n  Blackjack trainer running at  %s" % url)
     print("  Data stored in                %s" % db.DB_PATH)
-    print("  Stop with Ctrl-C\n")
+    # flush: stdout is block-buffered when it isn't a terminal, and a banner that
+    # only appears once 4KB has piled up is a banner nobody sees
+    print("  Stop with Ctrl-C\n", flush=True)
     if not args.no_browser:
         threading.Timer(0.6, lambda: webbrowser.open(url)).start()
     try:

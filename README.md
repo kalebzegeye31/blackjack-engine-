@@ -23,6 +23,10 @@ python3 server.py --port 9000      # different port
 python3 server.py --no-browser     # don't open a browser
 ```
 
+If it says the port is already in use, that is almost always this same program
+still running from earlier — it says so, gives you the process to stop, and
+suggests a free port if something else has it.
+
 ## How the money works
 
 An account starts with **nothing**. There is no automatic top-up.

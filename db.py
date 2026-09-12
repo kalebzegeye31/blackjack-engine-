@@ -8,6 +8,7 @@ import json
 import os
 import sqlite3
 import time
+from contextlib import contextmanager
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "blackjack.db")
 
@@ -64,11 +65,26 @@ CREATE INDEX IF NOT EXISTS idx_rnd_acct ON rounds(account_id);
 """
 
 
+@contextmanager
 def connect():
+    """
+    One connection per operation, committed and then closed.
+
+    `with sqlite3_connection:` only opens a transaction - it commits or rolls
+    back and leaves the connection open. Every caller here uses `with`, so
+    without the close() below each request leaked a connection, and in WAL
+    mode each of those pins three file handles. A few dozen hands was enough
+    to exhaust the process file limit and take the server down with
+    "unable to open database file".
+    """
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
-    return conn
+    try:
+        with conn:          # commit on success, roll back on error
+            yield conn
+    finally:
+        conn.close()
 
 
 def init():

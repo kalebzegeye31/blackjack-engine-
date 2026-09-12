@@ -111,6 +111,24 @@ obvious hands right and losing the same few awkward ones over and over.
 The Analysis tab turns that into money: how often you miss each square, times what
 that miss costs, times how often the hand turns up, times 80 hands an hour.
 
+## The explanations
+
+`coach.py` holds one hand-written passage for every square of the chart — 340 of
+them, plus insurance — keyed by the hand you hold and the card the dealer shows.
+Not generated, and not assembled from branches: a passage can only ever appear
+for the one situation it was written about, so it never tells you a hard 20 is a
+bad hand or calls a dealer showing a ten "in trouble". Each one gives you a hook,
+the reasoning, a comparison to something outside the game, and the block rule
+worth memorising — the same rule across every square in its block, so repetition
+drills the rule rather than the square.
+
+They are written for the standard table: six decks, dealer stands on all 17s,
+doubling allowed after a split. Ten squares move under a different soft-17 or
+double-after-split rule, and on those the passage gets a sentence above it saying
+so, because otherwise it would describe a table you are not sitting at while the
+verdict directly above says the opposite. `rules.py` works out which squares
+those are; nothing is flagged on a standard table.
+
 ## How it's put together
 
 ```
@@ -121,7 +139,7 @@ game.py      One table for one session: shoe, seats, whose turn, the money.
 sim.py       A second, stripped table that deals 200,000 hands a second.
 mastery.py   How well you actually know the chart.
 quiz.py      Questions, drawn from wherever your record is worst.
-coach.py     The words. Explanations and the glossary.
+coach.py     The words. One written passage per square of the chart, plus the glossary.
 db.py        SQLite storage: accounts, sessions, decisions, the chip ledger.
 static/      The browser side: one HTML file, one CSS file, one JS file.
 ```
@@ -201,11 +219,13 @@ Not implemented: surrender, European no-hole-card, doubling for less.
   0.001 — smaller than the difference between six decks and infinite decks
 - The chart changes with the rules, and only in the cells it should
 
-`python3 test_game.py` — 42 checks that the table deals like a real one, including
-every rule in the list above.
+`python3 test_game.py` — 49 checks that the table deals like a real one, including
+every rule in the list above, and that every square of the chart has a written
+passage to go with it under every rule set.
 
-`python3 test_db.py` — 27 checks that the chip ledger adds up, and that a database
-from the previous version upgrades without losing a row.
+`python3 test_db.py` — 30 checks that the chip ledger adds up, that a database
+from the previous version upgrades without losing a row, and that connections are
+handed back rather than leaked.
 
 `python3 validate.py` — the slow one, about 90 seconds (`--quick` for a tenth of it):
 

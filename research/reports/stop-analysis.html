@@ -1,0 +1,683 @@
+<title>When to Walk Away</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+:root {
+  color-scheme: light;
+  --bg: #F4F5F1;
+  --surface: #FBFBF9;
+  --ink: #182220;
+  --ink-2: #4C5A55;
+  --muted: #7E8B86;
+  --hair: #DDE2DE;
+  --axis: #C2CAC5;
+  --green: #1B7A4A;
+  --green-wash: rgba(27,122,74,0.10);
+  --green-wash-2: rgba(27,122,74,0.22);
+  --blue: #2F6DB5;
+  --blue-wash: rgba(47,109,181,0.10);
+  --neg: #B8433A;
+  --pos-text: #146238;
+  --neg-text: #9E3A32;
+  --ring: rgba(24,34,32,0.10);
+  --heat-0: #F4F5F1;
+  --heat-1: #0d366b;
+  --tip-bg: #182220;
+  --tip-ink: #F4F5F1;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #121917;
+    --surface: #1A2320;
+    --ink: #ECEFEA;
+    --ink-2: #B3BDB7;
+    --muted: #7E8B86;
+    --hair: #2A3531;
+    --axis: #3A4743;
+    --green: #2EA366;
+    --green-wash: rgba(46,163,102,0.14);
+    --green-wash-2: rgba(46,163,102,0.28);
+    --blue: #4A8BD6;
+    --blue-wash: rgba(74,139,214,0.14);
+    --neg: #E06B62;
+    --pos-text: #4CC98A;
+    --neg-text: #E58079;
+    --ring: rgba(255,255,255,0.10);
+    --heat-0: #1A2320;
+    --heat-1: #9ec5f4;
+    --tip-bg: #ECEFEA;
+    --tip-ink: #121917;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #121917;
+  --surface: #1A2320;
+  --ink: #ECEFEA;
+  --ink-2: #B3BDB7;
+  --muted: #7E8B86;
+  --hair: #2A3531;
+  --axis: #3A4743;
+  --green: #2EA366;
+  --green-wash: rgba(46,163,102,0.14);
+  --green-wash-2: rgba(46,163,102,0.28);
+  --blue: #4A8BD6;
+  --blue-wash: rgba(74,139,214,0.14);
+  --neg: #E06B62;
+  --pos-text: #4CC98A;
+  --neg-text: #E58079;
+  --ring: rgba(255,255,255,0.10);
+  --heat-0: #1A2320;
+  --heat-1: #9ec5f4;
+  --tip-bg: #ECEFEA;
+  --tip-ink: #121917;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+  font-size: 17px;
+  line-height: 1.55;
+  padding-inline: clamp(16px, 4vw, 40px);
+  padding-block: 40px 96px;
+}
+.display, h1, h2, h3, .eyebrow, .kpi, .axis, .legend, table, .tip, summary, .chart-title, .tag {
+  font-family: "Archivo", "Helvetica Neue", Arial, sans-serif;
+}
+code, pre, .mono { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+.wrap { max-width: 980px; margin: 0 auto; }
+.prose { max-width: 66ch; }
+.prose p { margin: 0 0 1em; }
+.prose p:last-child { margin-bottom: 0; }
+
+header { display: grid; gap: 14px; margin-bottom: 40px; }
+.eyebrow {
+  font-size: 12px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--ink-2);
+}
+h1 {
+  font-family: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  font-variation-settings: "wdth" 112;
+  font-weight: 800; font-size: clamp(40px, 7vw, 68px); line-height: 0.98;
+  letter-spacing: -0.02em; margin: 0; text-wrap: balance;
+}
+.dek { font-size: 20px; line-height: 1.45; color: var(--ink-2); max-width: 60ch; margin: 0; text-wrap: pretty; }
+.dek strong { color: var(--ink); font-weight: 600; }
+
+.kpis {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px;
+  margin: 28px 0 0;
+}
+.kpi {
+  background: var(--surface); border: 1px solid var(--hair); border-radius: 6px;
+  padding: 14px 16px 12px; display: grid; gap: 4px; align-content: start;
+}
+.kpi .label { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); }
+.kpi .value { font-size: 34px; font-weight: 700; line-height: 1.05; letter-spacing: -0.01em; }
+.kpi .note { font-size: 13px; color: var(--muted); line-height: 1.35; }
+.kpi .value.neg { color: var(--neg-text); }
+.kpi .value.pos { color: var(--pos-text); }
+
+section { margin-top: 64px; }
+h2 {
+  font-weight: 700; font-size: 26px; line-height: 1.15; letter-spacing: -0.015em;
+  margin: 0 0 6px; text-wrap: balance;
+}
+.section-eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--green); margin-bottom: 10px; }
+h3 { font-weight: 600; font-size: 17px; margin: 28px 0 8px; }
+
+figure { margin: 26px 0 0; background: var(--surface); border: 1px solid var(--hair); border-radius: 6px; padding: 18px 18px 12px; }
+.chart-title { font-size: 15px; font-weight: 600; margin: 0 0 2px; }
+.chart-sub { font-size: 13px; color: var(--muted); margin: 0 0 12px; font-family: "Archivo", sans-serif; }
+.chart { position: relative; width: 100%; }
+.chart svg { width: 100%; height: auto; display: block; overflow: visible; }
+.chart-scroll { overflow-x: auto; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12px; color: var(--ink-2); margin: 10px 0 0; }
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.legend i { display: inline-block; width: 14px; height: 10px; border-radius: 2px; }
+.legend i.line { height: 2px; border-radius: 1px; }
+.axis text, .lbl { font-family: "Archivo", sans-serif; font-size: 11px; fill: var(--muted); }
+.lbl.strong { fill: var(--ink); font-weight: 600; }
+.lbl.two { fill: var(--ink-2); }
+.grid line { stroke: var(--hair); stroke-width: 1; }
+.baseline { stroke: var(--axis); stroke-width: 1; }
+.zero { stroke: var(--ink-2); stroke-width: 1; }
+.hit { fill: transparent; cursor: crosshair; }
+.two-up { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 720px) { .two-up { grid-template-columns: 1fr; } }
+.two-up figure { margin-top: 26px; }
+
+details { margin-top: 10px; }
+summary { font-size: 12px; color: var(--ink-2); cursor: pointer; letter-spacing: 0.04em; text-transform: uppercase; font-weight: 600; }
+summary:focus-visible, a:focus-visible, button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.tablewrap { overflow-x: auto; margin-top: 8px; }
+table { border-collapse: collapse; font-size: 13px; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { text-align: right; padding: 5px 8px; border-bottom: 1px solid var(--hair); white-space: nowrap; }
+th { color: var(--ink-2); font-weight: 600; font-size: 12px; letter-spacing: 0.03em; }
+th:first-child, td:first-child { text-align: left; }
+table.rules td.pos { color: var(--pos-text); }
+table.rules td.neg { color: var(--neg-text); }
+
+.callout {
+  border-left: 3px solid var(--green); padding: 4px 0 4px 18px; margin: 24px 0 0;
+  font-size: 18px; line-height: 1.5; max-width: 62ch;
+}
+.callout .display { font-weight: 700; font-size: 20px; display: block; margin-bottom: 4px; letter-spacing: -0.01em; }
+
+.tip {
+  position: fixed; pointer-events: none; z-index: 10; background: var(--tip-bg); color: var(--tip-ink);
+  font-size: 12px; line-height: 1.4; padding: 7px 10px; border-radius: 4px; max-width: 260px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.18); white-space: pre-line; font-variant-numeric: tabular-nums;
+}
+.tip b { font-weight: 600; }
+
+pre {
+  background: var(--surface); border: 1px solid var(--hair); border-radius: 6px; padding: 14px 16px;
+  font-size: 13px; line-height: 1.5; overflow-x: auto; margin: 12px 0 0;
+}
+ul { padding-left: 1.2em; }
+li { margin-bottom: 6px; }
+.small { font-size: 14px; color: var(--ink-2); }
+.tag { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 3px; background: var(--green-wash); color: var(--pos-text); vertical-align: middle; }
+a { color: var(--blue); }
+@media (prefers-reduced-motion: no-preference) {
+  .dot { transition: r 120ms ease; }
+}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">Blackjack stopping-rule study · 100,000 simulated sessions</div>
+  <h1>When to walk away</h1>
+  <p class="dek">A $300 bankroll, $15 flat bets, perfect basic strategy, up to 100 hands. <strong>Every hand you play costs about 6½ cents on average, and no stopping rule changes that.</strong> What a rule does change is how often you leave a winner, and what it costs you on the nights you don’t.</p>
+  <div class="kpis" id="kpis"></div>
+</header>
+
+<section>
+  <div class="section-eyebrow">The answer</div>
+  <h2>The best time to stop, for the highest expected profit, is before the first hand</h2>
+  <div class="prose">
+    <p>Expected profit is the only measure that says what a rule earns over many nights. On this table it is decided by one number: the average result of one hand, which came out at <span class="mono">−$0.065</span> per $15 bet, a house edge of 0.436%. That matches the published figure for six decks, dealer stands on 17, double after split and 3:2 blackjacks. Nothing that happens earlier in the session moves it. So expected profit is highest, at exactly zero, when you stop at zero hands, and every hand after that subtracts the same 6½ cents.</p>
+    <p>The chart below is the proof by brute force. Each dot is one of 208 stopping rules (fixed lengths, win targets, loss limits, trailing stops, and their combinations), scored on the same 100,000 sessions. Wherever a rule lands, its expected profit is its average hand count times −6.5 cents. There is no rule above the line, because there cannot be one.</p>
+  </div>
+  <figure>
+    <div class="chart-title">Every rule lands on the same line</div>
+    <div class="chart-sub">208 stopping rules · x: average hands played under the rule · y: average result per session</div>
+    <div class="chart" id="c-rules"></div>
+    <div class="legend"><span><i style="background:var(--green)"></i>one stopping rule</span><span><i class="line" style="background:var(--ink-2)"></i>−$0.0652 × hands (least-squares fit)</span></div>
+    <details><summary>Table view</summary><div class="tablewrap" id="t-rules"></div></details>
+  </figure>
+  <div class="callout"><span class="display">So the honest reading of “stop at the best time” is this.</span> Pick a rule for the shape of the night you want, not for its average. Shorter sessions lose less on average only because they are shorter.</div>
+</section>
+
+<section>
+  <div class="section-eyebrow">The distribution</div>
+  <h2>What 100,000 sessions actually look like</h2>
+  <div class="prose">
+    <p>Playing all 100 hands, or until the money runs out, the typical night finishes within a bet or two of even, but the spread is enormous: one night in ten ends more than $255 down and one in ten more than $217 up. About one session in eleven goes broke before hand 100, never earlier than hand 17.</p>
+  </div>
+  <figure>
+    <div class="chart-title">Where your money is after n hands</div>
+    <div class="chart-sub">Profit relative to the $300 buy-in · median with the middle 50% and middle 80% of sessions · hover for the numbers at any hand</div>
+    <div class="chart" id="c-fan"></div>
+    <div class="legend"><span><i class="line" style="background:var(--green)"></i>median session</span><span><i style="background:var(--green-wash-2)"></i>middle 50% (p25 to p75)</span><span><i style="background:var(--green-wash)"></i>middle 80% (p10 to p90)</span></div>
+    <details><summary>Table view</summary><div class="tablewrap" id="t-fan"></div></details>
+  </figure>
+  <figure>
+    <div class="chart-title">Final result after 100 hands</div>
+    <div class="chart-sub">Share of sessions in each $30 band · the −$300 band holds the 8.8% that went broke</div>
+    <div class="chart" id="c-final"></div>
+    <details><summary>Table view</summary><div class="tablewrap" id="t-final"></div></details>
+  </figure>
+</section>
+
+<section>
+  <div class="section-eyebrow">Hindsight</div>
+  <h2>The best moment existed on almost every night. You just could not see it.</h2>
+  <div class="prose">
+    <p>92.2% of sessions were ahead at some point. The high-water mark averaged <span class="mono">+$126</span>, the median peak was <span class="mono">+$105</span>, and one session in ten peaked above <span class="mono">+$270</span>. Cashing out there would have turned a losing game into a handsome one. The catch is when it happens.</p>
+    <p>The timing of the peak follows the arcsine law of random walks: it is most likely to sit at either end of the session and least likely in the middle. The most common single answer to “when was the best time to leave?” is hand 100, because the session was still climbing, and the second most common is hand 1, because it never got better than the first win. There is no early-warning signal, only a coin that keeps costing 6½ cents to flip.</p>
+  </div>
+  <div class="two-up">
+    <figure>
+      <div class="chart-title">Which hand the peak fell on</div>
+      <div class="chart-sub">Share of sessions · hand 0 means the session was never ahead</div>
+      <div class="chart" id="c-peakhand"></div>
+      <details><summary>Table view</summary><div class="tablewrap" id="t-peakhand"></div></details>
+    </figure>
+    <figure>
+      <div class="chart-title">How high the peak got</div>
+      <div class="chart-sub">Session high-water mark, $30 bands</div>
+      <div class="chart" id="c-peakhist"></div>
+      <details><summary>Table view</summary><div class="tablewrap" id="t-peakhist"></div></details>
+    </figure>
+  </div>
+</section>
+
+<section>
+  <div class="section-eyebrow">Rules you can actually follow</div>
+  <h2>Win targets and loss limits trade one kind of night for another</h2>
+  <div class="prose">
+    <p>A win target buys frequency: leave the first moment you are up anything at all and you walk away a winner on 92% of nights. It does not buy money. The 8% of nights that never see a profit run the full 100 hands and lose an average of about $190, which is exactly enough to cancel the small wins. A loss limit does the opposite: it caps the bad nights and lowers the chance of finishing ahead, and again the average lands on the line.</p>
+    <p>Read the first grid as “how often do I go home up?” and the second as “what does it cost me on average?” They move in opposite directions along every row.</p>
+  </div>
+  <figure>
+    <div class="chart-title">Chance of finishing ahead</div>
+    <div class="chart-sub">Rows: leave when up this much · Columns: leave when down this much · “none” means that side never stops you</div>
+    <div class="chart-scroll"><div class="chart" id="c-heat-p"></div></div>
+    <details><summary>Table view</summary><div class="tablewrap" id="t-heat-p"></div></details>
+  </figure>
+  <figure>
+    <div class="chart-title">Average result per session</div>
+    <div class="chart-sub">Same grid · darker is a bigger average loss · nothing is above zero beyond sampling noise (±$0.5)</div>
+    <div class="chart-scroll"><div class="chart" id="c-heat-m"></div></div>
+    <details><summary>Table view</summary><div class="tablewrap" id="t-heat-m"></div></details>
+  </figure>
+
+  <h3>The best rule depends on what you are optimising</h3>
+  <div class="tablewrap"><table class="rules" id="t-best"></table></div>
+  <p class="small" style="margin-top:10px">“Average” is the expected result per session; “p10” is the result a bad night (worst one in ten) ends at. The standard error on any average here is about $0.5, so differences smaller than $1 are noise. The downward trend with hand count is not.</p>
+
+  <figure>
+    <div class="chart-title">Chance of being up by a given amount at some point in 100 hands</div>
+    <div class="chart-sub">If you set this as your target and never stop on a loss, this is how often you reach it before the hands run out</div>
+    <div class="chart" id="c-reach"></div>
+    <details><summary>Table view</summary><div class="tablewrap" id="t-reach"></div></details>
+  </figure>
+</section>
+
+<section>
+  <div class="section-eyebrow">Hot streaks and being due</div>
+  <h2>Is there ever a moment worth staying for?</h2>
+  <div class="prose">
+    <p>If being up or down changed the odds of the next hand, a smart stopping rule could exploit it. So the solver looked at every hand in the study, grouped by how far up or down the player was going in, and averaged what the next hand did. Every group with enough data sits on the same −6.5 cents within its error bar. Being $150 down does not make you due, and being $150 up does not make you hot. The only groups that drift are the ones near the bottom of the bankroll, where the player can no longer afford to double or split and plays slightly worse.</p>
+  </div>
+  <figure>
+    <div class="chart-title">Average result of the next hand, by current position</div>
+    <div class="chart-sub">$15 buckets of session profit going into the hand · bars show ±1 standard error · reference line at the overall −$0.065</div>
+    <div class="chart" id="c-cond"></div>
+    <details><summary>Table view</summary><div class="tablewrap" id="t-cond"></div></details>
+  </figure>
+</section>
+
+<section>
+  <div class="section-eyebrow">One real night</div>
+  <h2>A single session through the trainer itself</h2>
+  <div class="prose">
+    <p>Alongside the 100,000 simulated sessions, one session was played card by card through the trainer’s own HTTP API: sat down with $300, bet $15 every hand, and chose every move from the basic-strategy chart. The trainer graded the play at 100% accuracy. The session peaked at <span class="mono">+$67.50</span> after hand 13 and finished at <span class="mono">−$127.50</span>. It is one draw from the distribution above, nothing more, which is the whole point of running a hundred thousand of them.</p>
+  </div>
+  <figure>
+    <div class="chart-title">Bankroll over the 100 hands played live</div>
+    <div class="chart-sub">Profit relative to the $300 buy-in · dealt by game.py, graded by engine.py</div>
+    <div class="chart" id="c-demo"></div>
+    <details><summary>Table view</summary><div class="tablewrap" id="t-demo"></div></details>
+  </figure>
+</section>
+
+<section>
+  <div class="section-eyebrow">Method</div>
+  <h2>How the numbers were made</h2>
+  <div class="prose">
+    <ul>
+      <li><b>Engine.</b> <code>sim.py</code> from the blackjack-engine repository: the stripped table that shares its rule set and strategy chart with the trainer. Six decks, dealer stands on soft 17, double after split, no re-splitting aces, up to four hands, blackjack pays 3:2, reshuffle at 75% penetration, a fresh shoe for each session.</li>
+      <li><b>Player.</b> Perfect basic strategy, flat $15 bets, no card counting, no insurance. When the stack is too short to double or split, the engine forbids it, as a real table would.</li>
+      <li><b>Sessions.</b> 100,000 independent sessions of up to 100 hands, seed 20260912, split across 16 worker processes. 9,742,828 hands dealt in 11.6 seconds. A session ends early only when the stack falls below one $15 bet.</li>
+      <li><b>Rules.</b> The full profit path of every session is recorded once, then every stopping rule is scored on the same paths, so rules are compared on identical cards. 16 win targets × 13 loss limits, 16 win targets × 9 trailing stops, and every fixed length from 0 to 100 hands.</li>
+      <li><b>Assumption.</b> “$15 buy-in” is read as a $15 bet per hand. The $300 is the money on the table.</li>
+      <li><b>Precision.</b> The standard deviation of a 100-hand session is $170, so the standard error of any session average is about $0.5. The house edge came out at 0.436% of the initial bet against the published 0.43%.</li>
+    </ul>
+    <p>Reproduce it from a clone of the repository:</p>
+  </div>
+  <pre>python3 research/stop_solver.py \
+    --sessions 100000 --hands 100 \
+    --bankroll 300 --bet 15 --seed 20260912 \
+    --out research/results/stop-results.json</pre>
+  <p class="small" style="margin-top:12px">Flags <code>--h17</code>, <code>--no-das</code> and <code>--six-five</code> re-run the study under the harsher rule sets the trainer also supports.</p>
+</section>
+</div>
+
+<div class="tip" id="tip" hidden></div>
+
+<script id="report-data">window.REPORT = {"config":{"sessions":100000,"hands":100,"bankroll":300,"bet":15,"seed":20260912,"elapsed_s":11.5,"hands_dealt":9742828,"rules":{"hit_soft_17":false,"das":true,"blackjack_pays":1.5}},"baseline":{"mean":-6.3786,"median":-7.5,"sd":169.8732721384974,"p_profit":0.47326,"p_zero":0.01811,"p_loss":0.50863,"bust_rate":0.08795,"mean_hands":97.42828,"edge_per_initial_bet":-0.004364646486625854,"p05":-292.5,"p10":-255.0,"p25":-127.5,"p75":112.5,"p90":217.5,"p95":277.5,"min":-300.0,"max":735.0},"per_hand_cost":0.0655,"se_of_mean":0.537,"peak":{"mean":125.87955,"median":105.0,"p10":15.0,"p90":270.0,"p_ever_ahead":0.9224},"trough":{"mean":-126.698025,"median":-112.5,"p10":-277.5,"p90":-15.0},"fan":[[0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[1,-15.0,-15.0,0.0,15.0,22.5,-0.067,0.4329],[2,-30.0,-15.0,0.0,15.0,30.0,-0.076,0.36],[3,-45.0,-15.0,0.0,15.0,45.0,-0.057,0.4238],[4,-45.0,-30.0,0.0,30.0,45.0,-0.009,0.4234],[5,-45.0,-30.0,0.0,30.0,52.5,-0.127,0.4372],[6,-60.0,-30.0,0.0,30.0,52.5,-0.139,0.4423],[7,-60.0,-30.0,0.0,30.0,60.0,-0.233,0.4458],[8,-60.0,-30.0,0.0,30.0,60.0,-0.247,0.4524],[9,-67.5,-37.5,0.0,37.5,67.5,-0.316,0.4545],[10,-75.0,-37.5,0.0,37.5,67.5,-0.388,0.458],[11,-75.0,-45.0,0.0,37.5,75.0,-0.467,0.4615],[12,-75.0,-45.0,0.0,37.5,75.0,-0.45,0.4643],[13,-82.5,-45.0,0.0,45.0,82.5,-0.564,0.4657],[14,-82.5,-45.0,0.0,45.0,82.5,-0.581,0.4681],[15,-90.0,-45.0,0.0,45.0,90.0,-0.594,0.4685],[16,-90.0,-45.0,0.0,45.0,90.0,-0.684,0.4693],[17,-90.0,-45.0,0.0,45.0,90.0,-0.78,0.4672],[18,-90.0,-52.5,0.0,45.0,90.0,-0.748,0.4696],[19,-97.5,-52.5,0.0,52.5,97.5,-0.857,0.4695],[20,-97.5,-52.5,0.0,52.5,97.5,-0.833,0.4716],[21,-105.0,-52.5,0.0,52.5,105.0,-0.953,0.4715],[22,-105.0,-60.0,0.0,52.5,105.0,-1.044,0.4721],[23,-105.0,-60.0,0.0,52.5,105.0,-1.102,0.4732],[24,-105.0,-60.0,0.0,52.5,105.0,-1.176,0.4722],[25,-112.5,-60.0,0.0,60.0,112.5,-1.209,0.4728],[26,-112.5,-60.0,0.0,60.0,112.5,-1.297,0.4737],[27,-120.0,-60.0,0.0,60.0,112.5,-1.464,0.472],[28,-120.0,-60.0,0.0,60.0,112.5,-1.551,0.4733],[29,-120.0,-67.5,0.0,60.0,120.0,-1.594,0.4731],[30,-120.0,-67.5,0.0,60.0,120.0,-1.69,0.4738],[31,-127.5,-67.5,0.0,60.0,120.0,-1.779,0.4737],[32,-127.5,-67.5,0.0,60.0,120.0,-1.854,0.4743],[33,-127.5,-67.5,0.0,67.5,127.5,-1.904,0.4743],[34,-127.5,-67.5,0.0,67.5,127.5,-1.894,0.4749],[35,-135.0,-67.5,0.0,67.5,127.5,-1.982,0.4756],[36,-135.0,-75.0,0.0,67.5,127.5,-2.049,0.4745],[37,-135.0,-75.0,0.0,67.5,135.0,-2.076,0.4755],[38,-135.0,-75.0,0.0,67.5,135.0,-2.07,0.4764],[39,-142.5,-75.0,0.0,67.5,135.0,-2.158,0.4756],[40,-142.5,-75.0,0.0,75.0,135.0,-2.278,0.474],[41,-142.5,-75.0,0.0,75.0,142.5,-2.391,0.4748],[42,-142.5,-75.0,0.0,75.0,142.5,-2.448,0.4751],[43,-150.0,-82.5,0.0,75.0,142.5,-2.522,0.4752],[44,-150.0,-82.5,0.0,75.0,142.5,-2.558,0.4765],[45,-150.0,-82.5,0.0,75.0,142.5,-2.692,0.4756],[46,-150.0,-82.5,0.0,75.0,150.0,-2.841,0.4756],[47,-157.5,-82.5,0.0,75.0,150.0,-3.055,0.4751],[48,-157.5,-82.5,-7.5,75.0,150.0,-3.249,0.4745],[49,-157.5,-82.5,-7.5,75.0,150.0,-3.257,0.4748],[50,-157.5,-90.0,-7.5,82.5,150.0,-3.339,0.4751],[51,-157.5,-90.0,-7.5,82.5,157.5,-3.333,0.4755],[52,-165.0,-90.0,-7.5,82.5,157.5,-3.388,0.4758],[53,-165.0,-90.0,-7.5,82.5,157.5,-3.481,0.4752],[54,-165.0,-90.0,-7.5,82.5,157.5,-3.553,0.4754],[55,-165.0,-90.0,-7.5,82.5,157.5,-3.612,0.475],[56,-165.0,-90.0,-7.5,82.5,165.0,-3.647,0.4755],[57,-172.5,-90.0,-7.5,82.5,165.0,-3.766,0.4749],[58,-172.5,-90.0,-7.5,82.5,165.0,-3.775,0.4764],[59,-172.5,-97.5,-7.5,82.5,165.0,-3.942,0.4748],[60,-172.5,-97.5,-7.5,82.5,165.0,-3.989,0.4756],[61,-180.0,-97.5,-7.5,90.0,165.0,-4.136,0.4739],[62,-180.0,-97.5,-7.5,90.0,172.5,-4.19,0.4743],[63,-180.0,-97.5,-7.5,90.0,172.5,-4.175,0.4751],[64,-180.0,-97.5,-7.5,90.0,172.5,-4.187,0.4759],[65,-180.0,-97.5,-7.5,90.0,172.5,-4.202,0.4758],[66,-187.5,-97.5,-7.5,90.0,172.5,-4.294,0.4746],[67,-187.5,-97.5,-7.5,90.0,180.0,-4.373,0.4759],[68,-187.5,-105.0,-7.5,90.0,180.0,-4.49,0.4759],[69,-187.5,-105.0,-7.5,90.0,180.0,-4.558,0.4759],[70,-187.5,-105.0,-7.5,90.0,180.0,-4.601,0.4757],[71,-195.0,-105.0,-7.5,90.0,180.0,-4.611,0.4751],[72,-195.0,-105.0,-7.5,97.5,180.0,-4.639,0.4754],[73,-195.0,-105.0,-7.5,97.5,187.5,-4.625,0.4759],[74,-195.0,-105.0,-7.5,97.5,187.5,-4.785,0.4748],[75,-195.0,-105.0,-7.5,97.5,187.5,-4.825,0.476],[76,-202.5,-105.0,-7.5,97.5,187.5,-4.883,0.4759],[77,-202.5,-105.0,-7.5,97.5,187.5,-4.866,0.4759],[78,-202.5,-112.5,-7.5,97.5,187.5,-4.911,0.4755],[79,-202.5,-112.5,-7.5,97.5,195.0,-4.991,0.4764],[80,-210.0,-112.5,-7.5,97.5,195.0,-5.066,0.4765],[81,-210.0,-112.5,-7.5,97.5,195.0,-5.096,0.4759],[82,-210.0,-112.5,-7.5,97.5,195.0,-5.18,0.4758],[83,-210.0,-112.5,-7.5,97.5,195.0,-5.297,0.4754],[84,-217.5,-112.5,-7.5,97.5,195.0,-5.42,0.4754],[85,-217.5,-112.5,-7.5,105.0,195.0,-5.451,0.4753],[86,-217.5,-112.5,-7.5,105.0,202.5,-5.517,0.4747],[87,-225.0,-112.5,-7.5,105.0,202.5,-5.539,0.4744],[88,-225.0,-120.0,-7.5,105.0,202.5,-5.593,0.4747],[89,-225.0,-120.0,-7.5,105.0,202.5,-5.678,0.4739],[90,-225.0,-120.0,-7.5,105.0,202.5,-5.778,0.4743],[91,-232.5,-120.0,-7.5,105.0,202.5,-5.856,0.4739],[92,-232.5,-120.0,-7.5,105.0,202.5,-5.952,0.4746],[93,-232.5,-120.0,-7.5,105.0,210.0,-5.943,0.4747],[94,-240.0,-120.0,-7.5,105.0,210.0,-5.973,0.4751],[95,-240.0,-120.0,-7.5,105.0,210.0,-6.046,0.4754],[96,-240.0,-120.0,-7.5,105.0,210.0,-6.096,0.4747],[97,-247.5,-120.0,-7.5,105.0,210.0,-6.182,0.4755],[98,-247.5,-127.5,-7.5,105.0,210.0,-6.242,0.4738],[99,-255.0,-127.5,-7.5,112.5,210.0,-6.313,0.4741],[100,-255.0,-127.5,-7.5,112.5,217.5,-6.379,0.4733]],"final_hist":[{"from":-300,"to":-270,"n":9257,"p":0.09257},{"from":-270,"to":-240,"n":1290,"p":0.0129},{"from":-240,"to":-210,"n":2276,"p":0.02276},{"from":-210,"to":-180,"n":3232,"p":0.03232},{"from":-180,"to":-150,"n":4193,"p":0.04193},{"from":-150,"to":-120,"n":4988,"p":0.04988},{"from":-120,"to":-90,"n":5718,"p":0.05718},{"from":-90,"to":-60,"n":6217,"p":0.06217},{"from":-60,"to":-30,"n":6786,"p":0.06786},{"from":-30,"to":0,"n":6906,"p":0.06906},{"from":0,"to":30,"n":6929,"p":0.06929},{"from":30,"to":60,"n":6493,"p":0.06493},{"from":60,"to":90,"n":6280,"p":0.0628},{"from":90,"to":120,"n":5733,"p":0.05733},{"from":120,"to":150,"n":4922,"p":0.04922},{"from":150,"to":180,"n":4280,"p":0.0428},{"from":180,"to":210,"n":3633,"p":0.03633},{"from":210,"to":240,"n":2930,"p":0.0293},{"from":240,"to":270,"n":2245,"p":0.02245},{"from":270,"to":300,"n":1703,"p":0.01703},{"from":300,"to":330,"n":1229,"p":0.01229},{"from":330,"to":360,"n":882,"p":0.00882},{"from":360,"to":390,"n":676,"p":0.00676},{"from":390,"to":420,"n":444,"p":0.00444},{"from":420,"to":450,"n":291,"p":0.00291},{"from":450,"to":null,"n":467,"p":0.00467}],"peak_hand":[[0,0.0776],[1,0.03408],[2,0.02146],[3,0.01929],[4,0.01624],[5,0.01433],[6,0.01344],[7,0.01253],[8,0.01188],[9,0.01138],[10,0.01082],[11,0.01015],[12,0.00969],[13,0.00974],[14,0.00906],[15,0.00931],[16,0.00852],[17,0.00918],[18,0.0085],[19,0.00779],[20,0.00782],[21,0.0078],[22,0.0079],[23,0.00755],[24,0.00768],[25,0.00728],[26,0.0072],[27,0.00713],[28,0.00744],[29,0.00708],[30,0.00738],[31,0.00709],[32,0.00676],[33,0.00659],[34,0.00635],[35,0.00684],[36,0.00622],[37,0.00638],[38,0.00647],[39,0.00684],[40,0.00636],[41,0.00666],[42,0.00669],[43,0.00642],[44,0.00695],[45,0.00623],[46,0.00665],[47,0.00634],[48,0.00622],[49,0.00633],[50,0.00625],[51,0.00633],[52,0.00675],[53,0.00628],[54,0.00616],[55,0.0058],[56,0.00648],[57,0.00638],[58,0.0062],[59,0.00644],[60,0.00591],[61,0.00689],[62,0.00608],[63,0.00584],[64,0.00657],[65,0.00649],[66,0.00729],[67,0.0071],[68,0.00606],[69,0.00658],[70,0.0067],[71,0.00704],[72,0.00682],[73,0.00709],[74,0.00732],[75,0.00707],[76,0.00722],[77,0.0074],[78,0.00712],[79,0.00745],[80,0.00762],[81,0.00777],[82,0.00792],[83,0.00896],[84,0.00832],[85,0.00843],[86,0.00849],[87,0.00913],[88,0.00947],[89,0.00959],[90,0.00931],[91,0.01138],[92,0.01052],[93,0.01228],[94,0.01297],[95,0.01341],[96,0.01435],[97,0.01683],[98,0.01932],[99,0.02322],[100,0.03996]],"peak_hist":[{"from":0,"to":30,"n":16305,"p":0.16305},{"from":30,"to":60,"n":13996,"p":0.13996},{"from":60,"to":90,"n":12705,"p":0.12705},{"from":90,"to":120,"n":11460,"p":0.1146},{"from":120,"to":150,"n":9881,"p":0.09881},{"from":150,"to":180,"n":8465,"p":0.08465},{"from":180,"to":210,"n":6762,"p":0.06762},{"from":210,"to":240,"n":5563,"p":0.05563},{"from":240,"to":270,"n":4340,"p":0.0434},{"from":270,"to":300,"n":3280,"p":0.0328},{"from":300,"to":330,"n":2315,"p":0.02315},{"from":330,"to":360,"n":1682,"p":0.01682},{"from":360,"to":390,"n":1129,"p":0.01129},{"from":390,"to":420,"n":803,"p":0.00803},{"from":420,"to":450,"n":516,"p":0.00516},{"from":450,"to":null,"n":798,"p":0.00798}],"grid":{"win_targets":[7.5,15,22.5,30,45,60,75,90,105,120,150,180,210,240,300,null],"loss_limits":[15,30,45,60,75,90,120,150,180,210,240,270,null],"trail_stops":[15,30,45,60,75,90,120,150,null],"p_profit":[[0.4753,0.6404,0.7288,0.7824,0.8188,0.8451,0.8781,0.8996,0.9113,0.918,0.9208,0.922,0.9224],[0.4753,0.6328,0.7175,0.7702,0.8065,0.8327,0.8666,0.8882,0.9002,0.9067,0.9094,0.9105,0.9109],[0.3488,0.5074,0.6049,0.6709,0.7181,0.7536,0.8007,0.8303,0.8465,0.8552,0.8585,0.8599,0.8603],[0.3325,0.4855,0.5808,0.6464,0.6937,0.7297,0.7786,0.8094,0.8256,0.8344,0.8376,0.8389,0.8393],[0.2548,0.3927,0.4863,0.5555,0.6074,0.6483,0.7053,0.74,0.7582,0.7679,0.7715,0.7729,0.7733],[0.2053,0.3287,0.4183,0.4864,0.5397,0.5823,0.6429,0.6789,0.6977,0.7077,0.7114,0.7128,0.7133],[0.1735,0.2834,0.3673,0.4329,0.4857,0.5287,0.5903,0.6267,0.6457,0.6556,0.6593,0.6606,0.6611],[0.1492,0.2488,0.3274,0.3906,0.4421,0.4844,0.546,0.5823,0.6014,0.6112,0.6149,0.6162,0.6167],[0.1313,0.2213,0.2957,0.3568,0.4074,0.4492,0.5101,0.5462,0.5652,0.575,0.5787,0.58,0.5805],[0.1174,0.2004,0.2709,0.3298,0.3794,0.4209,0.4814,0.5174,0.5364,0.5462,0.5499,0.5512,0.5517],[0.0979,0.171,0.2365,0.2929,0.3412,0.3818,0.4418,0.4774,0.4964,0.5062,0.5099,0.5112,0.5117],[0.0863,0.1543,0.2172,0.2725,0.3201,0.3605,0.4203,0.4558,0.4748,0.4846,0.4883,0.4896,0.4901],[0.0804,0.1461,0.2079,0.263,0.3104,0.3508,0.4104,0.4459,0.4649,0.4748,0.4785,0.4798,0.4803],[0.0774,0.1421,0.2036,0.2585,0.3059,0.3463,0.4059,0.4414,0.4604,0.4703,0.474,0.4753,0.4758],[0.0759,0.1402,0.2014,0.2563,0.3036,0.344,0.4036,0.4391,0.4581,0.4679,0.4717,0.473,0.4734],[0.0757,0.14,0.2012,0.2561,0.3034,0.3438,0.4034,0.4389,0.4579,0.4678,0.4715,0.4728,0.4733]],"mean":[[-0.06,-0.085,-0.093,-0.113,-0.128,-0.116,-0.34,-0.296,-0.472,-0.459,-0.556,-0.615,-0.645],[-0.06,-0.068,-0.117,-0.103,-0.085,-0.084,-0.307,-0.3,-0.468,-0.454,-0.586,-0.644,-0.682],[0.019,-0.003,-0.091,-0.117,-0.118,-0.13,-0.444,-0.564,-0.808,-0.807,-1.031,-1.096,-1.152],[0.015,-0.035,-0.158,-0.171,-0.215,-0.254,-0.576,-0.674,-0.99,-0.985,-1.238,-1.33,-1.409],[0.012,-0.117,-0.373,-0.425,-0.533,-0.61,-0.969,-1.184,-1.535,-1.47,-1.672,-1.765,-1.872],[-0.157,-0.363,-0.618,-0.791,-0.937,-1.098,-1.49,-1.873,-2.284,-2.233,-2.443,-2.557,-2.678],[-0.172,-0.526,-0.844,-1.129,-1.325,-1.526,-1.966,-2.43,-2.843,-2.815,-3.004,-3.109,-3.231],[-0.286,-0.694,-1.058,-1.388,-1.652,-1.954,-2.466,-2.968,-3.417,-3.362,-3.584,-3.681,-3.785],[-0.364,-0.939,-1.278,-1.604,-1.888,-2.23,-2.804,-3.367,-3.832,-3.78,-4.007,-4.079,-4.194],[-0.401,-1.041,-1.417,-1.823,-2.163,-2.504,-3.173,-3.726,-4.19,-4.125,-4.36,-4.436,-4.549],[-0.525,-1.328,-1.725,-2.192,-2.66,-3.108,-3.8,-4.422,-4.878,-4.771,-4.984,-5.056,-5.168],[-0.685,-1.579,-2.081,-2.556,-3.082,-3.509,-4.246,-4.889,-5.321,-5.208,-5.431,-5.498,-5.606],[-0.725,-1.634,-2.179,-2.626,-3.189,-3.606,-4.343,-4.975,-5.398,-5.277,-5.502,-5.575,-5.685],[-0.906,-1.885,-2.435,-2.901,-3.495,-3.909,-4.619,-5.257,-5.667,-5.546,-5.772,-5.845,-5.955],[-1.056,-2.098,-2.749,-3.212,-3.807,-4.233,-4.96,-5.609,-6.01,-5.893,-6.119,-6.192,-6.302],[-1.066,-2.144,-2.791,-3.298,-3.862,-4.302,-5.035,-5.687,-6.087,-5.968,-6.195,-6.268,-6.379]],"median":[[-15.0,15.0,15.0,15.0,15.0,15.0,15.0,15.0,15.0,15.0,15.0,15.0,15.0],[-15.0,15.0,15.0,15.0,15.0,15.0,15.0,15.0,15.0,15.0,15.0,15.0,15.0],[-15.0,22.5,22.5,30.0,30.0,30.0,30.0,30.0,30.0,30.0,30.0,30.0,30.0],[-15.0,-30.0,30.0,30.0,30.0,30.0,30.0,30.0,30.0,30.0,30.0,30.0,30.0],[-15.0,-30.0,-45.0,45.0,45.0,45.0,45.0,45.0,45.0,45.0,45.0,45.0,45.0],[-15.0,-30.0,-45.0,-60.0,60.0,60.0,60.0,60.0,60.0,60.0,60.0,60.0,60.0],[-15.0,-30.0,-45.0,-60.0,-75.0,75.0,75.0,75.0,75.0,75.0,75.0,75.0,75.0],[-15.0,-30.0,-45.0,-60.0,-75.0,-90.0,90.0,90.0,90.0,90.0,90.0,90.0,90.0],[-15.0,-30.0,-45.0,-60.0,-75.0,-90.0,22.5,82.5,105.0,105.0,105.0,105.0,105.0],[-15.0,-30.0,-45.0,-60.0,-75.0,-90.0,-22.5,22.5,37.5,45.0,45.0,45.0,45.0],[-15.0,-30.0,-45.0,-60.0,-75.0,-90.0,-60.0,-15.0,0.0,7.5,7.5,7.5,7.5],[-15.0,-30.0,-45.0,-60.0,-75.0,-90.0,-75.0,-22.5,-7.5,0.0,0.0,0.0,0.0],[-15.0,-30.0,-45.0,-60.0,-75.0,-90.0,-75.0,-30.0,-15.0,-7.5,-7.5,-7.5,-7.5],[-15.0,-30.0,-45.0,-60.0,-75.0,-90.0,-82.5,-30.0,-15.0,-7.5,-7.5,-7.5,-7.5],[-15.0,-30.0,-45.0,-60.0,-75.0,-90.0,-82.5,-30.0,-15.0,-7.5,-7.5,-7.5,-7.5],[-15.0,-30.0,-45.0,-60.0,-75.0,-90.0,-82.5,-30.0,-15.0,-7.5,-7.5,-7.5,-7.5]],"mean_hands":[[1.1,1.95,2.82,3.67,4.52,5.37,7.04,8.71,10.22,11.51,12.48,13.23,13.63],[1.1,2.03,3.0,3.96,4.93,5.91,7.83,9.73,11.42,12.86,13.92,14.73,15.16],[1.79,3.35,4.9,6.45,7.99,9.52,12.54,15.45,18.03,20.15,21.71,22.89,23.51],[1.96,3.71,5.48,7.25,9.03,10.8,14.28,17.6,20.49,22.84,24.55,25.82,26.48],[2.86,5.42,7.99,10.56,13.13,15.69,20.63,25.2,29.06,32.09,34.26,35.84,36.65],[3.76,7.13,10.5,13.85,17.19,20.52,26.79,32.37,36.94,40.46,42.94,44.72,45.62],[4.65,8.81,12.96,17.09,21.17,25.18,32.57,38.96,44.04,47.88,50.58,52.48,53.44],[5.55,10.48,15.38,20.25,25.01,29.61,37.94,44.92,50.36,54.44,57.26,59.25,60.25],[6.43,12.15,17.8,23.38,28.74,33.85,42.89,50.31,56.0,60.22,63.12,65.17,66.18],[7.29,13.77,20.1,26.3,32.18,37.7,47.31,55.04,60.89,65.21,68.16,70.22,71.25],[8.93,16.74,24.31,31.49,38.18,44.28,54.61,62.71,68.75,73.16,76.16,78.25,79.28],[10.45,19.4,27.87,35.74,42.93,49.37,60.12,68.4,74.53,78.98,81.99,84.08,85.12],[11.7,21.52,30.63,38.95,46.45,53.11,64.08,72.45,78.61,83.08,86.09,88.19,89.23],[12.68,23.11,32.67,41.29,48.98,55.78,66.88,75.3,81.47,85.95,88.96,91.06,92.1],[13.87,25.01,35.08,44.02,51.91,58.84,70.06,78.52,84.71,89.18,92.2,94.3,95.34],[14.76,26.37,36.74,45.87,53.87,60.85,72.13,80.61,86.8,91.28,94.29,96.39,97.43]],"p_hit_win":[[0.4753,0.6404,0.7288,0.7824,0.8188,0.8451,0.8781,0.8996,0.9113,0.918,0.9208,0.922,0.9224],[0.4753,0.6328,0.7175,0.7702,0.8065,0.8327,0.8666,0.8881,0.9,0.9065,0.9092,0.9102,0.9106],[0.3488,0.5074,0.6049,0.6709,0.7181,0.7536,0.8007,0.8301,0.8459,0.8544,0.8576,0.8589,0.8593],[0.3325,0.4855,0.5808,0.6464,0.6937,0.7297,0.7784,0.8087,0.8243,0.8325,0.8354,0.8366,0.8369],[0.2548,0.3927,0.4863,0.5555,0.6074,0.6482,0.7041,0.737,0.7534,0.7617,0.7644,0.7655,0.7658],[0.2053,0.3287,0.4182,0.4863,0.5394,0.5814,0.639,0.6709,0.6862,0.6936,0.6959,0.6968,0.697],[0.1735,0.2834,0.3672,0.4323,0.4842,0.5252,0.5805,0.6096,0.6231,0.6293,0.6312,0.6318,0.632],[0.1492,0.2487,0.3268,0.3886,0.4373,0.4753,0.5257,0.5513,0.5627,0.5679,0.5693,0.5698,0.5699],[0.1312,0.2207,0.2933,0.3507,0.3956,0.4299,0.4742,0.4958,0.505,0.5091,0.5101,0.5105,0.5106],[0.1171,0.1984,0.2649,0.3168,0.3572,0.3876,0.4255,0.4433,0.451,0.4542,0.455,0.4553,0.4553],[0.0952,0.1616,0.2158,0.257,0.2874,0.31,0.3371,0.3491,0.3538,0.3559,0.3563,0.3565,0.3565],[0.0769,0.1298,0.1718,0.2033,0.2254,0.2417,0.2598,0.2675,0.2703,0.2716,0.2718,0.2719,0.2719],[0.0613,0.1023,0.1342,0.1575,0.1732,0.1845,0.1967,0.2016,0.2033,0.2041,0.2042,0.2042,0.2043],[0.047,0.0777,0.1012,0.1177,0.1285,0.1361,0.1441,0.1471,0.1481,0.1485,0.1486,0.1486,0.1486],[0.0255,0.0412,0.0522,0.0601,0.0649,0.0679,0.0711,0.072,0.0723,0.0724,0.0724,0.0724,0.0724],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]],"p_hit_stop":[[0.5248,0.3596,0.2712,0.2176,0.1812,0.1549,0.1216,0.0982,0.081,0.0651,0.0514,0.0394,0.0],[0.5248,0.3672,0.2825,0.2298,0.1935,0.1673,0.133,0.1083,0.0891,0.0714,0.0563,0.0429,0.0],[0.6512,0.4926,0.3951,0.3291,0.2819,0.2464,0.198,0.1624,0.1329,0.1057,0.0824,0.0619,0.0],[0.6675,0.5145,0.4192,0.3536,0.3063,0.2702,0.2191,0.18,0.1471,0.1164,0.0903,0.0676,0.0],[0.7452,0.6073,0.5137,0.4444,0.3924,0.3509,0.2881,0.2367,0.1912,0.1493,0.114,0.0844,0.0],[0.7947,0.6713,0.5817,0.5135,0.4595,0.415,0.3427,0.2807,0.2248,0.174,0.1314,0.0965,0.0],[0.8265,0.7166,0.6326,0.5666,0.5119,0.465,0.3844,0.3133,0.2486,0.1908,0.1428,0.1039,0.0],[0.8508,0.7512,0.6723,0.6081,0.5529,0.504,0.4163,0.3372,0.266,0.2028,0.1509,0.1091,0.0],[0.8687,0.7786,0.7035,0.6403,0.5839,0.5328,0.4387,0.3536,0.2772,0.2102,0.1557,0.1119,0.0],[0.8825,0.7992,0.7276,0.665,0.6077,0.5542,0.4551,0.3648,0.2847,0.215,0.1587,0.1138,0.0],[0.902,0.8279,0.7596,0.6966,0.6368,0.58,0.4734,0.3774,0.2927,0.22,0.1614,0.1153,0.0],[0.9135,0.8437,0.7765,0.7124,0.6507,0.5916,0.481,0.382,0.2952,0.2213,0.1621,0.1157,0.0],[0.9192,0.8509,0.7836,0.7186,0.6562,0.596,0.4837,0.3837,0.2961,0.2218,0.1624,0.1158,0.0],[0.922,0.8544,0.7868,0.7212,0.6583,0.5976,0.4846,0.3842,0.2964,0.2219,0.1625,0.1158,0.0],[0.9235,0.8561,0.7884,0.7226,0.6593,0.5984,0.4851,0.3844,0.2964,0.2219,0.1625,0.1158,0.0],[0.9236,0.8562,0.7885,0.7227,0.6594,0.5985,0.4851,0.3844,0.2965,0.2219,0.1625,0.1158,0.0]],"p10":[[-15.0,-30.0,-45.0,-60.0,-75.0,-90.0,-120.0,-45.0,7.5,7.5,7.5,7.5,7.5],[-15.0,-30.0,-45.0,-60.0,-75.0,-90.0,-120.0,-150.0,15.0,15.0,15.0,15.0,15.0],[-15.0,-30.0,-45.0,-60.0,-75.0,-90.0,-120.0,-150.0,-180.0,-210.0,-150.0,-127.5,-120.0],[-15.0,-30.0,-45.0,-60.0,-75.0,-90.0,-120.0,-150.0,-180.0,-210.0,-180.0,-157.5,-150.0],[-15.0,-37.5,-52.5,-67.5,-82.5,-97.5,-127.5,-157.5,-180.0,-210.0,-240.0,-202.5,-195.0],[-22.5,-37.5,-52.5,-67.5,-82.5,-97.5,-127.5,-157.5,-187.5,-210.0,-240.0,-247.5,-217.5],[-22.5,-37.5,-52.5,-67.5,-82.5,-97.5,-127.5,-157.5,-187.5,-210.0,-240.0,-270.0,-232.5],[-22.5,-37.5,-52.5,-67.5,-82.5,-97.5,-127.5,-157.5,-187.5,-210.0,-240.0,-270.0,-240.0],[-22.5,-37.5,-52.5,-67.5,-82.5,-97.5,-127.5,-157.5,-187.5,-217.5,-240.0,-270.0,-247.5],[-22.5,-37.5,-52.5,-67.5,-82.5,-97.5,-127.5,-157.5,-187.5,-217.5,-240.0,-270.0,-247.5],[-22.5,-37.5,-52.5,-67.5,-82.5,-97.5,-127.5,-157.5,-187.5,-217.5,-240.0,-270.0,-255.0],[-22.5,-37.5,-52.5,-67.5,-82.5,-97.5,-127.5,-157.5,-187.5,-217.5,-240.0,-270.0,-255.0],[-22.5,-37.5,-52.5,-67.5,-82.5,-97.5,-127.5,-157.5,-187.5,-217.5,-240.0,-270.0,-255.0],[-22.5,-37.5,-52.5,-67.5,-82.5,-97.5,-127.5,-157.5,-187.5,-217.5,-240.0,-270.0,-255.0],[-22.5,-37.5,-52.5,-67.5,-82.5,-97.5,-127.5,-157.5,-187.5,-217.5,-240.0,-270.0,-255.0],[-22.5,-37.5,-52.5,-67.5,-82.5,-97.5,-127.5,-157.5,-187.5,-217.5,-240.0,-270.0,-255.0]],"trail_mean":[[-0.06,-0.085,-0.093,-0.113,-0.128,-0.116,-0.34,-0.296,-0.645],[-0.06,-0.067,-0.11,-0.122,-0.088,-0.076,-0.319,-0.277,-0.682],[-0.022,-0.037,-0.037,-0.099,-0.129,-0.115,-0.433,-0.49,-1.152],[-0.028,-0.073,-0.035,-0.133,-0.224,-0.19,-0.605,-0.627,-1.409],[-0.069,-0.128,-0.117,-0.235,-0.436,-0.407,-0.93,-1.008,-1.872],[-0.086,-0.19,-0.193,-0.419,-0.659,-0.681,-1.39,-1.543,-2.678],[-0.087,-0.23,-0.275,-0.515,-0.864,-0.954,-1.697,-1.969,-3.231],[-0.101,-0.262,-0.28,-0.611,-1.01,-1.154,-1.982,-2.347,-3.785],[-0.103,-0.264,-0.338,-0.647,-1.156,-1.277,-2.222,-2.611,-4.194],[-0.105,-0.263,-0.351,-0.689,-1.192,-1.361,-2.419,-2.905,-4.549],[-0.097,-0.257,-0.351,-0.706,-1.275,-1.469,-2.749,-3.421,-5.168],[-0.097,-0.239,-0.361,-0.699,-1.323,-1.515,-2.927,-3.788,-5.606],[-0.095,-0.239,-0.383,-0.755,-1.422,-1.663,-3.029,-3.879,-5.685],[-0.093,-0.243,-0.375,-0.763,-1.456,-1.781,-3.227,-4.121,-5.955],[-0.093,-0.24,-0.394,-0.808,-1.609,-1.971,-3.49,-4.422,-6.302],[-0.093,-0.239,-0.374,-0.798,-1.602,-1.968,-3.506,-4.467,-6.379]],"trail_p_profit":[[0.4753,0.6404,0.7288,0.7824,0.8188,0.8451,0.8781,0.8996,0.9224],[0.4753,0.6304,0.715,0.7678,0.8047,0.8313,0.8656,0.8878,0.9109],[0.2894,0.4637,0.5754,0.6489,0.7017,0.741,0.7929,0.826,0.8603],[0.2871,0.4319,0.5435,0.6173,0.6711,0.7125,0.7672,0.803,0.8393],[0.2775,0.32,0.4106,0.4953,0.5589,0.61,0.6801,0.7261,0.7733],[0.2772,0.3134,0.3373,0.3967,0.4655,0.5222,0.6024,0.6565,0.7133],[0.2772,0.313,0.3326,0.3442,0.3885,0.4474,0.5354,0.5956,0.6611],[0.2772,0.3129,0.3322,0.3403,0.3463,0.3839,0.4767,0.5425,0.6167],[0.2772,0.3129,0.3322,0.3401,0.3429,0.3481,0.4258,0.4974,0.5805],[0.2772,0.3129,0.3322,0.3401,0.3426,0.3454,0.3818,0.459,0.5517],[0.2772,0.3129,0.3322,0.3401,0.3426,0.3451,0.3545,0.3992,0.5117],[0.2772,0.3129,0.3322,0.3401,0.3426,0.3451,0.3544,0.3824,0.4901],[0.2772,0.3129,0.3322,0.3401,0.3426,0.3451,0.3544,0.3824,0.4803],[0.2772,0.3129,0.3322,0.3401,0.3426,0.3451,0.3544,0.3824,0.4758],[0.2772,0.3129,0.3322,0.3401,0.3426,0.3451,0.3544,0.3824,0.4734],[0.2772,0.3129,0.3322,0.3401,0.3426,0.3451,0.3544,0.3824,0.4733]],"trail_mean_hands":[[1.1,1.95,2.82,3.67,4.52,5.37,7.04,8.71,13.63],[1.1,2.01,2.96,3.91,4.88,5.85,7.77,9.69,15.16],[1.49,2.92,4.42,5.93,7.45,8.97,11.98,14.95,23.51],[1.55,3.09,4.75,6.46,8.2,9.94,13.42,16.83,26.48],[1.8,3.84,6.13,8.51,10.97,13.45,18.4,23.24,36.65],[1.93,4.34,7.16,10.15,13.26,16.44,22.79,28.96,45.62],[2.0,4.68,7.94,11.46,15.16,18.98,26.65,33.98,53.44],[2.04,4.92,8.52,12.49,16.73,21.13,30.0,38.41,60.25],[2.07,5.07,8.97,13.34,18.05,22.99,32.99,42.39,66.18],[2.08,5.18,9.3,14.0,19.13,24.56,35.58,45.84,71.25],[2.09,5.31,9.74,14.97,20.79,27.06,39.78,51.42,79.28],[2.09,5.37,10.01,15.62,21.97,28.91,42.98,55.65,85.12],[2.09,5.4,10.16,16.03,22.78,30.25,45.36,58.75,89.23],[2.09,5.41,10.25,16.29,23.34,31.22,47.08,60.98,92.1],[2.09,5.42,10.33,16.58,24.01,32.4,49.17,63.61,95.34],[2.09,5.43,10.37,16.78,24.52,33.31,50.7,65.44,97.43]]},"reach":[[7.5,0.9224],[15,0.9106],[22.5,0.8593],[30,0.8369],[45,0.7658],[60,0.697],[75,0.632],[90,0.5699],[105,0.5106],[120,0.4553],[150,0.3565],[180,0.2719],[210,0.2043],[240,0.1486],[300,0.0724]],"cond":[{"from":-270,"to":-255,"n":29464,"ev":-0.1105,"se":0.0996},{"from":-255,"to":-240,"n":42319,"ev":0.1189,"se":0.0831},{"from":-240,"to":-225,"n":58755,"ev":0.0078,"se":0.0705},{"from":-225,"to":-210,"n":75004,"ev":-0.2793,"se":0.0624},{"from":-210,"to":-195,"n":93524,"ev":0.0601,"se":0.0559},{"from":-195,"to":-180,"n":115226,"ev":-0.0055,"se":0.0504},{"from":-180,"to":-165,"n":139284,"ev":-0.0083,"se":0.0458},{"from":-165,"to":-150,"n":166186,"ev":-0.0105,"se":0.0419},{"from":-150,"to":-135,"n":195943,"ev":-0.0488,"se":0.0386},{"from":-135,"to":-120,"n":229087,"ev":-0.0414,"se":0.0357},{"from":-120,"to":-105,"n":265513,"ev":-0.0691,"se":0.0332},{"from":-105,"to":-90,"n":304895,"ev":-0.0857,"se":0.031},{"from":-90,"to":-75,"n":348352,"ev":-0.0659,"se":0.029},{"from":-75,"to":-60,"n":396720,"ev":-0.051,"se":0.0271},{"from":-60,"to":-45,"n":449221,"ev":-0.055,"se":0.0255},{"from":-45,"to":-30,"n":504122,"ev":-0.0641,"se":0.0241},{"from":-30,"to":-15,"n":565627,"ev":-0.0716,"se":0.0227},{"from":-15,"to":0,"n":629531,"ev":-0.0635,"se":0.0216},{"from":0,"to":15,"n":715870,"ev":-0.046,"se":0.0202},{"from":15,"to":30,"n":609314,"ev":-0.0562,"se":0.0219},{"from":30,"to":45,"n":537119,"ev":-0.0949,"se":0.0233},{"from":45,"to":60,"n":472266,"ev":-0.0731,"se":0.0249},{"from":60,"to":75,"n":413002,"ev":-0.0964,"se":0.0266},{"from":75,"to":90,"n":360370,"ev":-0.1056,"se":0.0285},{"from":90,"to":105,"n":312421,"ev":-0.0701,"se":0.0306},{"from":105,"to":120,"n":270232,"ev":-0.0473,"se":0.0329},{"from":120,"to":135,"n":233108,"ev":-0.0402,"se":0.0354},{"from":135,"to":150,"n":200941,"ev":-0.0907,"se":0.0381},{"from":150,"to":165,"n":171889,"ev":-0.0642,"se":0.0412},{"from":165,"to":180,"n":145193,"ev":-0.106,"se":0.0449},{"from":180,"to":195,"n":122115,"ev":-0.1432,"se":0.0489},{"from":195,"to":210,"n":102179,"ev":0.0166,"se":0.0535},{"from":210,"to":225,"n":85665,"ev":-0.1553,"se":0.0584},{"from":225,"to":240,"n":70939,"ev":-0.106,"se":0.0642},{"from":240,"to":255,"n":58422,"ev":-0.171,"se":0.0707},{"from":255,"to":270,"n":47467,"ev":-0.094,"se":0.0785},{"from":270,"to":285,"n":38649,"ev":-0.1075,"se":0.087},{"from":285,"to":300,"n":31296,"ev":0.022,"se":0.0967},{"from":300,"to":315,"n":25303,"ev":0.0172,"se":0.1075},{"from":315,"to":330,"n":20367,"ev":-0.123,"se":0.1198}],"demo":{"path":[-30.0,0.0,15.0,15.0,0.0,15.0,0.0,-15.0,0.0,15.0,30.0,45.0,67.5,52.5,22.5,37.5,52.5,67.5,52.5,37.5,52.5,22.5,37.5,52.5,52.5,37.5,52.5,67.5,52.5,37.5,22.5,37.5,60.0,45.0,30.0,30.0,45.0,30.0,30.0,15.0,0.0,-15.0,-30.0,-45.0,-30.0,-15.0,-30.0,-15.0,-30.0,-45.0,-60.0,-75.0,-90.0,-105.0,-120.0,-105.0,-105.0,-120.0,-105.0,-105.0,-120.0,-135.0,-150.0,-165.0,-142.5,-157.5,-142.5,-127.5,-142.5,-157.5,-142.5,-157.5,-172.5,-157.5,-172.5,-187.5,-202.5,-157.5,-172.5,-157.5,-172.5,-157.5,-172.5,-157.5,-157.5,-127.5,-127.5,-142.5,-157.5,-157.5,-157.5,-142.5,-112.5,-97.5,-112.5,-127.5,-142.5,-127.5,-112.5,-127.5],"cash_out":172.5,"net":-127.5,"accuracy":"100%","peak_hand":13,"peak":67.5}};</script>
+<script>
+(function () {
+  const R = window.REPORT;
+  const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const NS = "http://www.w3.org/2000/svg";
+  const fmtMoney = (v, d = 2) => {
+    const s = Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+    return (v < 0 ? "−$" : v > 0 ? "+$" : "$") + s;
+  };
+  const fmtPct = (p, d = 1) => (100 * p).toFixed(d) + "%";
+  const money0 = (v) => fmtMoney(v, Number.isInteger(v) ? 0 : 1);
+  const el = (tag, attrs = {}, parent) => {
+    const n = document.createElementNS(NS, tag);
+    for (const k in attrs) n.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(n);
+    return n;
+  };
+  const text = (parent, x, y, s, cls = "lbl", anchor = "start") => {
+    const t = el("text", { x, y, "text-anchor": anchor, class: cls }, parent);
+    t.textContent = s;
+    return t;
+  };
+
+  // ---- tooltip ----
+  const tip = document.getElementById("tip");
+  function showTip(html, ev) {
+    tip.innerHTML = html;
+    tip.hidden = false;
+    const pad = 14, w = tip.offsetWidth, h = tip.offsetHeight;
+    let x = ev.clientX + pad, y = ev.clientY + pad;
+    if (x + w > window.innerWidth - 8) x = ev.clientX - w - pad;
+    if (y + h > window.innerHeight - 8) y = ev.clientY - h - pad;
+    tip.style.left = x + "px";
+    tip.style.top = y + "px";
+  }
+  function hideTip() { tip.hidden = true; }
+
+  function svgIn(id, w, h) {
+    const host = document.getElementById(id);
+    const s = el("svg", { viewBox: `0 0 ${w} ${h}`, role: "img" });
+    host.appendChild(s);
+    return s;
+  }
+  function tableIn(id, headers, rows) {
+    const host = document.getElementById(id);
+    const t = document.createElement("table");
+    t.innerHTML = "<thead><tr>" + headers.map(h => `<th>${h}</th>`).join("") + "</tr></thead>" +
+      "<tbody>" + rows.map(r => "<tr>" + r.map(c => `<td>${c}</td>`).join("") + "</tr>").join("") + "</tbody>";
+    host.appendChild(t);
+  }
+  function linScale(d0, d1, r0, r1) { const f = (v) => r0 + (v - d0) / (d1 - d0) * (r1 - r0); f.inv = (p) => d0 + (p - r0) / (r1 - r0) * (d1 - d0); return f; }
+  function niceTicks(lo, hi, step) { const out = []; for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(+v.toFixed(6)); return out; }
+
+  // ---- KPIs ----
+  const b = R.baseline;
+  const kp = document.getElementById("kpis");
+  [
+    ["Expected cost per hand", fmtMoney(-R.per_hand_cost, 3), "neg", "0.436% house edge on a $15 bet, basic strategy"],
+    ["Ahead at some point", fmtPct(R.peak.p_ever_ahead), "", "sessions that were in profit at least once"],
+    ["Finish ahead, playing all 100", fmtPct(b.p_profit), "", "median result " + fmtMoney(b.median, 2) + ", average " + fmtMoney(b.mean, 2)],
+    ["Go broke before hand 100", fmtPct(b.bust_rate), "neg", "never before hand 17; worst tenth ends below " + fmtMoney(b.p10, 0)],
+  ].forEach(([l, v, c, n]) => {
+    const d = document.createElement("div"); d.className = "kpi";
+    d.innerHTML = `<div class="label">${l}</div><div class="value ${c}">${v}</div><div class="note">${n}</div>`;
+    kp.appendChild(d);
+  });
+
+  // ---- 1. rules scatter ----
+  (function () {
+    const G = R.grid, W = G.win_targets, L = G.loss_limits, D = G.trail_stops;
+    const pts = [];
+    const nm = (v) => v == null ? "none" : "$" + v;
+    W.forEach((w, i) => L.forEach((l, j) => pts.push({ x: G.mean_hands[i][j], y: G.mean[i][j], p: G.p_profit[i][j], name: `win target ${nm(w)}, loss limit ${nm(l)}` })));
+    W.forEach((w, i) => D.forEach((d, j) => pts.push({ x: G.trail_mean_hands[i][j], y: G.trail_mean[i][j], p: G.trail_p_profit[i][j], name: `win target ${nm(w)}, trailing stop ${nm(d)}` })));
+    const W_ = 900, H_ = 360, m = { t: 18, r: 24, b: 40, l: 56 };
+    const s = svgIn("c-rules", W_, H_);
+    const xs = linScale(0, 100, m.l, W_ - m.r), ys = linScale(-7.5, 1, H_ - m.b, m.t);
+    const grid = el("g", { class: "grid" }, s);
+    niceTicks(-7, 1, 1).forEach(v => { el("line", { x1: m.l, x2: W_ - m.r, y1: ys(v), y2: ys(v) }, grid); text(s, m.l - 8, ys(v) + 4, fmtMoney(v, 0), "lbl", "end"); });
+    el("line", { x1: m.l, x2: W_ - m.r, y1: ys(0), y2: ys(0), class: "zero" }, s);
+    niceTicks(0, 100, 20).forEach(v => text(s, xs(v), H_ - m.b + 18, String(v), "lbl", "middle"));
+    text(s, (m.l + W_ - m.r) / 2, H_ - 4, "average hands played under the rule", "lbl two", "middle");
+    const slope = -0.0652;
+    el("line", { x1: xs(0), y1: ys(0), x2: xs(100), y2: ys(slope * 100), stroke: css("--ink-2"), "stroke-width": 1.5 }, s);
+    text(s, xs(100) + 2, ys(slope * 100) - 8, "−6.5¢ × hands", "lbl two", "end");
+    const dots = el("g", {}, s);
+    pts.filter(p => !p.fixed).forEach(p => {
+      const c = el("circle", { cx: xs(p.x), cy: ys(p.y), r: 4.5, fill: css("--green"), stroke: css("--surface"), "stroke-width": 2, "fill-opacity": 0.85, class: "dot" }, dots);
+      const hit = el("circle", { cx: xs(p.x), cy: ys(p.y), r: 10, class: "hit" }, dots);
+      hit.addEventListener("mousemove", ev => { c.setAttribute("r", 6); showTip(`<b>${p.name}</b>\naverage ${fmtMoney(p.y)} over ${p.x.toFixed(1)} hands\nfinish ahead ${fmtPct(p.p)}`, ev); });
+      hit.addEventListener("mouseleave", () => { c.setAttribute("r", 4.5); hideTip(); });
+    });
+    // direct labels on the two ends
+    const all = pts.filter(p => !p.fixed);
+    const far = all.reduce((a, p) => p.x > a.x ? p : a);
+    const near = all.find(p => p.name === "win target $7.5, loss limit none");
+    text(s, xs(far.x) - 10, ys(far.y) + 4, `play all 100 hands: ${fmtMoney(far.y)}`, "lbl strong", "end");
+    text(s, xs(near.x) + 10, ys(near.y) + 14, `leave the first time you are up: ${fmtMoney(near.y)}`, "lbl strong", "start");
+    tableIn("t-rules", ["Rule", "Avg hands", "Average result", "Finish ahead"],
+      all.sort((a, b2) => a.x - b2.x).map(p => [p.name, p.x.toFixed(1), fmtMoney(p.y), fmtPct(p.p)]));
+  })();
+
+  // ---- 2. fan ----
+  (function () {
+    const F = R.fan, W_ = 900, H_ = 380, m = { t: 16, r: 24, b: 40, l: 56 };
+    const s = svgIn("c-fan", W_, H_);
+    const xs = linScale(0, 100, m.l, W_ - m.r), ys = linScale(-300, 300, H_ - m.b, m.t);
+    const grid = el("g", { class: "grid" }, s);
+    niceTicks(-300, 300, 100).forEach(v => { el("line", { x1: m.l, x2: W_ - m.r, y1: ys(v), y2: ys(v) }, grid); text(s, m.l - 8, ys(v) + 4, fmtMoney(v, 0), "lbl", "end"); });
+    niceTicks(0, 100, 20).forEach(v => text(s, xs(v), H_ - m.b + 18, String(v), "lbl", "middle"));
+    text(s, (m.l + W_ - m.r) / 2, H_ - 4, "hands played", "lbl two", "middle");
+    const band = (lo, hi, fill) => {
+      let d = "M" + F.map(f => `${xs(f[0])},${ys(f[lo])}`).join("L") + "L" + F.slice().reverse().map(f => `${xs(f[0])},${ys(f[hi])}`).join("L") + "Z";
+      el("path", { d, fill, stroke: "none" }, s);
+    };
+    band(1, 5, css("--green-wash"));
+    band(2, 4, css("--green-wash-2"));
+    el("line", { x1: m.l, x2: W_ - m.r, y1: ys(0), y2: ys(0), class: "zero" }, s);
+    el("path", { d: "M" + F.map(f => `${xs(f[0])},${ys(f[3])}`).join("L"), fill: "none", stroke: css("--green"), "stroke-width": 2, "stroke-linejoin": "round" }, s);
+    const last = F[F.length - 1];
+    text(s, xs(100) - 4, ys(last[5]) - 6, `p90 ${fmtMoney(last[5], 1)}`, "lbl two", "end");
+    text(s, xs(100) - 4, ys(last[1]) + 14, `p10 ${fmtMoney(last[1], 0)}`, "lbl two", "end");
+    text(s, xs(100) - 4, ys(last[3]) - 6, `median ${fmtMoney(last[3], 1)}`, "lbl strong", "end");
+    const cross = el("line", { x1: 0, x2: 0, y1: m.t, y2: H_ - m.b, stroke: css("--ink-2"), "stroke-width": 1, visibility: "hidden" }, s);
+    const dot = el("circle", { r: 4, fill: css("--green"), stroke: css("--surface"), "stroke-width": 2, visibility: "hidden" }, s);
+    const hit = el("rect", { x: m.l, y: m.t, width: W_ - m.l - m.r, height: H_ - m.t - m.b, class: "hit" }, s);
+    hit.addEventListener("mousemove", ev => {
+      const r = s.getBoundingClientRect(); const px = (ev.clientX - r.left) / r.width * W_;
+      const n = Math.max(0, Math.min(100, Math.round(xs.inv(px)))); const f = F[n];
+      cross.setAttribute("x1", xs(n)); cross.setAttribute("x2", xs(n)); cross.setAttribute("visibility", "visible");
+      dot.setAttribute("cx", xs(n)); dot.setAttribute("cy", ys(f[3])); dot.setAttribute("visibility", "visible");
+      showTip(`<b>after ${n} hand${n === 1 ? "" : "s"}</b>\nmedian ${fmtMoney(f[3], 1)} · average ${fmtMoney(f[6])}\nmiddle 50%: ${fmtMoney(f[2], 1)} to ${fmtMoney(f[4], 1)}\nmiddle 80%: ${fmtMoney(f[1], 1)} to ${fmtMoney(f[5], 1)}\nahead of even: ${fmtPct(f[7])}`, ev);
+    });
+    hit.addEventListener("mouseleave", () => { cross.setAttribute("visibility", "hidden"); dot.setAttribute("visibility", "hidden"); hideTip(); });
+    tableIn("t-fan", ["Hands", "p10", "p25", "Median", "p75", "p90", "Average", "Ahead"],
+      F.filter(f => f[0] % 10 === 0 || f[0] <= 5).map(f => [f[0], fmtMoney(f[1], 1), fmtMoney(f[2], 1), fmtMoney(f[3], 1), fmtMoney(f[4], 1), fmtMoney(f[5], 1), fmtMoney(f[6]), fmtPct(f[7])]));
+  })();
+
+  // ---- histogram helper ----
+  function histogram(id, tid, bins, opts) {
+    const W_ = opts.width || 900, H_ = opts.height || 300, m = { t: 26, r: 16, b: 40, l: 44 };
+    const s = svgIn(id, W_, H_);
+    const n = bins.length, slot = (W_ - m.l - m.r) / n, bw = Math.min(24, slot - 2);
+    const maxP = Math.max(...bins.map(d => d.p));
+    const ys = linScale(0, maxP, H_ - m.b, m.t);
+    const grid = el("g", { class: "grid" }, s);
+    const step = maxP > 0.3 ? 0.1 : maxP > 0.12 ? 0.05 : 0.02;
+    niceTicks(0, maxP, step).forEach(v => { el("line", { x1: m.l, x2: W_ - m.r, y1: ys(v), y2: ys(v) }, grid); text(s, m.l - 6, ys(v) + 4, fmtPct(v, 0), "lbl", "end"); });
+    el("line", { x1: m.l, x2: W_ - m.r, y1: ys(0), y2: ys(0), class: "baseline" }, s);
+    bins.forEach((d, i) => {
+      const x = m.l + i * slot + (slot - bw) / 2, y = ys(d.p), h = ys(0) - y;
+      const rr = Math.min(4, h / 2);
+      const path = h <= 0 ? "" : `M${x},${ys(0)} V${y + rr} Q${x},${y} ${x + rr},${y} H${x + bw - rr} Q${x + bw},${y} ${x + bw},${y + rr} V${ys(0)} Z`;
+      if (path) el("path", { d: path, fill: opts.color }, s);
+      const hit = el("rect", { x: m.l + i * slot, y: m.t, width: slot, height: H_ - m.t - m.b, class: "hit" }, s);
+      hit.addEventListener("mousemove", ev => showTip(`<b>${opts.label(d)}</b>\n${fmtPct(d.p)} of sessions (${d.n.toLocaleString()})`, ev));
+      hit.addEventListener("mouseleave", hideTip);
+      if (opts.tick(d, i)) text(s, x + bw / 2, H_ - m.b + 16, opts.tick(d, i), "lbl", "middle");
+    });
+    if (opts.zeroAt != null) {
+      const i = bins.findIndex(d => d.from === opts.zeroAt);
+      if (i >= 0) { const x = m.l + i * slot; el("line", { x1: x, x2: x, y1: m.t, y2: ys(0), class: "zero" }, s); text(s, x + 4, m.t + 10, "even", "lbl two"); }
+    }
+    (opts.annotate || []).forEach(a => { const i = a.index(bins); const d = bins[i]; const x = m.l + i * slot + slot / 2; text(s, x + (a.dx || 0), ys(d.p) - 8, a.text(d), "lbl strong", a.anchor || "middle"); });
+    text(s, (m.l + W_ - m.r) / 2, H_ - 4, opts.xlabel, "lbl two", "middle");
+    tableIn(tid, [opts.colName, "Sessions", "Share"], bins.map(d => [opts.label(d), d.n.toLocaleString(), fmtPct(d.p, 2)]));
+  }
+  const bandLabel = (d) => d.to == null ? `${money0(d.from)} and above` : `${money0(d.from)} to ${money0(d.to)}`;
+  histogram("c-final", "t-final", R.final_hist, {
+    color: css("--green"), xlabel: "final result, $30 bands", colName: "Final result", label: bandLabel,
+    tick: (d, i) => (i % 2 === 0 ? money0(d.from) : ""), zeroAt: 0,
+    annotate: [{ index: () => 0, text: () => "incl. 8.8% broke", anchor: "start", dx: -10 }],
+  });
+
+  // ---- 3. peak hand (101 thin bars) ----
+  (function () {
+    const P = R.peak_hand, W_ = 440, H_ = 260, m = { t: 26, r: 10, b: 40, l: 40 };
+    const s = svgIn("c-peakhand", W_, H_);
+    const slot = (W_ - m.l - m.r) / P.length, bw = Math.max(1.5, slot - 1);
+    const maxP = Math.max(...P.map(d => d[1]));
+    const ys = linScale(0, maxP, H_ - m.b, m.t);
+    const grid = el("g", { class: "grid" }, s);
+    niceTicks(0, maxP, 0.02).forEach(v => { el("line", { x1: m.l, x2: W_ - m.r, y1: ys(v), y2: ys(v) }, grid); text(s, m.l - 6, ys(v) + 4, fmtPct(v, 0), "lbl", "end"); });
+    el("line", { x1: m.l, x2: W_ - m.r, y1: ys(0), y2: ys(0), class: "baseline" }, s);
+    P.forEach((d, i) => {
+      const x = m.l + i * slot + (slot - bw) / 2;
+      el("rect", { x, y: ys(d[1]), width: bw, height: ys(0) - ys(d[1]), fill: css("--green") }, s);
+      const hit = el("rect", { x: m.l + i * slot, y: m.t, width: slot, height: H_ - m.t - m.b, class: "hit" }, s);
+      hit.addEventListener("mousemove", ev => showTip(`<b>${d[0] === 0 ? "never ahead" : "peak on hand " + d[0]}</b>\n${fmtPct(d[1])} of sessions`, ev));
+      hit.addEventListener("mouseleave", hideTip);
+    });
+    [0, 20, 40, 60, 80, 100].forEach(v => text(s, m.l + v * slot + slot / 2, H_ - m.b + 16, String(v), "lbl", "middle"));
+    text(s, (m.l + W_ - m.r) / 2, H_ - 4, "hand on which the session peaked", "lbl two", "middle");
+    text(s, m.l + slot / 2 + 6, ys(P[0][1]) - 6, `never ahead ${fmtPct(P[0][1])}`, "lbl strong", "start");
+    text(s, m.l + 100 * slot + slot / 2 - 6, ys(P[100][1]) - 6, `hand 100: ${fmtPct(P[100][1])}`, "lbl strong", "end");
+    tableIn("t-peakhand", ["Peak hand", "Share"], P.map(d => [d[0] === 0 ? "never ahead" : d[0], fmtPct(d[1], 2)]));
+  })();
+  histogram("c-peakhist", "t-peakhist", R.peak_hist, {
+    width: 440, height: 260, color: css("--green"), xlabel: "session high-water mark", colName: "Peak", label: bandLabel,
+    tick: (d, i) => (i % 3 === 0 ? money0(d.from) : ""),
+  });
+
+  // ---- 4. heatmaps ----
+  function heat(id, tid, values, fmt, opts) {
+    const G = R.grid, W = G.win_targets, L = G.loss_limits;
+    const nm = (v) => v == null ? "none" : "$" + v;
+    const cw = 62, ch = 26, m = { t: 44, l: 74 };
+    const W_ = m.l + L.length * cw + 8, H_ = m.t + W.length * ch + 8;
+    const host = document.getElementById(id); host.style.minWidth = W_ + "px";
+    const s = svgIn(id, W_, H_);
+    const lo = Math.min(...values.flat()), hi = Math.max(...values.flat());
+    const c0 = css("--heat-0"), c1 = css("--heat-1");
+    const hex = (c) => { const h = c.replace("#", ""); return [0, 2, 4].map(i => parseInt(h.substr(i, 2), 16)); };
+    const A = hex(c0), B = hex(c1);
+    const lerp = (t) => "rgb(" + A.map((a, i) => Math.round(a + (B[i] - a) * t)).join(",") + ")";
+    const lum = (t) => { const [r, g, bb] = A.map((a, i) => a + (B[i] - a) * t); return (0.299 * r + 0.587 * g + 0.114 * bb) / 255; };
+    text(s, m.l - 8, 14, "leave when up ↓ · leave when down →", "lbl two", "start");
+    L.forEach((l, j) => text(s, m.l + j * cw + cw / 2, m.t - 8, nm(l), "lbl strong", "middle"));
+    W.forEach((w, i) => {
+      text(s, m.l - 8, m.t + i * ch + ch / 2 + 4, nm(w), "lbl strong", "end");
+      L.forEach((l, j) => {
+        const v = values[i][j]; const t = opts.invert ? (hi - v) / (hi - lo) : (v - lo) / (hi - lo);
+        const x = m.l + j * cw, y = m.t + i * ch;
+        el("rect", { x: x + 1, y: y + 1, width: cw - 2, height: ch - 2, fill: lerp(t), rx: 2 }, s);
+        const ink = lum(t) > 0.55 ? "#182220" : "#F4F5F1";
+        const tx = el("text", { x: x + cw / 2, y: y + ch / 2 + 4, "text-anchor": "middle", fill: ink, style: "font-family: 'JetBrains Mono', monospace; font-size: 11px" }, s);
+        tx.textContent = fmt(v);
+        const hit = el("rect", { x, y, width: cw, height: ch, class: "hit" }, s);
+        hit.addEventListener("mousemove", ev => showTip(`<b>up ${nm(w)} / down ${nm(l)}</b>\nfinish ahead ${fmtPct(G.p_profit[i][j])}\naverage ${fmtMoney(G.mean[i][j])} · median ${fmtMoney(G.median[i][j], 1)}\navg hands ${G.mean_hands[i][j].toFixed(1)} · bad night (p10) ${fmtMoney(G.p10[i][j], 1)}\nhit the target ${fmtPct(G.p_hit_win[i][j])} · hit the limit ${fmtPct(G.p_hit_stop[i][j])}`, ev));
+        hit.addEventListener("mouseleave", hideTip);
+      });
+    });
+    tableIn(tid, ["Up \\ Down"].concat(L.map(nm)), W.map((w, i) => [nm(w)].concat(values[i].map(fmt))));
+  }
+  heat("c-heat-p", "t-heat-p", R.grid.p_profit, (v) => (100 * v).toFixed(0) + "%", {});
+  heat("c-heat-m", "t-heat-m", R.grid.mean, (v) => fmtMoney(v, 2), { invert: true });
+
+  // ---- best-rule table ----
+  (function () {
+    const G = R.grid, W = G.win_targets, L = G.loss_limits;
+    const at = (w, l) => { const i = W.indexOf(w), j = L.indexOf(l); return { p: G.p_profit[i][j], m: G.mean[i][j], med: G.median[i][j], h: G.mean_hands[i][j], p10: G.p10[i][j] }; };
+    const rows = [
+      ["Highest expected profit", "Do not sit down (0 hands)", "$0.00", "$0.00", "$0.00", "0", "—"],
+      ["…if you insist on playing", "Leave the first time you are up anything; no loss limit", at(7.5, null)],
+      ["Most nights ending ahead", "Same rule: up $7.50 target, no loss limit", at(7.5, null)],
+      ["Highest median result", "Up $105 target, down $210 limit", at(105, 210)],
+      ["Sit the full 100 hands", "No target, no limit", at(null, null)],
+      ["Cap the damage", "No target, down $150 limit", at(null, 150)],
+    ];
+    const t = document.getElementById("t-best");
+    t.innerHTML = "<thead><tr><th>Goal</th><th>Rule</th><th>Average</th><th>Median</th><th>Bad night (p10)</th><th>Avg hands</th><th>Finish ahead</th></tr></thead><tbody>" +
+      rows.map(r => {
+        if (r.length === 7) return `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td><td>${r[4]}</td><td>${r[5]}</td><td>${r[6]}</td></tr>`;
+        const x = r[2];
+        const cls = (v) => v > 0 ? "pos" : v < 0 ? "neg" : "";
+        return `<tr><td>${r[0]}</td><td>${r[1]}</td><td class="${cls(x.m)}">${fmtMoney(x.m)}</td><td class="${cls(x.med)}">${fmtMoney(x.med, 1)}</td><td class="${cls(x.p10)}">${fmtMoney(x.p10, 1)}</td><td>${x.h.toFixed(1)}</td><td>${fmtPct(x.p)}</td></tr>`;
+      }).join("") + "</tbody>";
+  })();
+
+  // ---- reach bars ----
+  (function () {
+    const Rr = R.reach.filter(d => d[0] >= 15), W_ = 900, H_ = 26 * Rr.length + 40, m = { t: 8, r: 70, b: 28, l: 60 };
+    const s = svgIn("c-reach", W_, H_);
+    const xs = linScale(0, 1, m.l, W_ - m.r);
+    const grid = el("g", { class: "grid" }, s);
+    niceTicks(0, 1, 0.25).forEach(v => { el("line", { x1: xs(v), x2: xs(v), y1: m.t, y2: H_ - m.b }, grid); text(s, xs(v), H_ - m.b + 16, fmtPct(v, 0), "lbl", "middle"); });
+    el("line", { x1: xs(0), x2: xs(0), y1: m.t, y2: H_ - m.b, class: "baseline" }, s);
+    Rr.forEach((d, i) => {
+      const y = m.t + i * 26 + 3, h = 20, w = xs(d[1]) - xs(0);
+      const x0 = xs(0), rr = 4;
+      el("path", { d: `M${x0},${y} H${x0 + w - rr} Q${x0 + w},${y} ${x0 + w},${y + rr} V${y + h - rr} Q${x0 + w},${y + h} ${x0 + w - rr},${y + h} H${x0} Z`, fill: css("--green") }, s);
+      text(s, x0 - 8, y + h / 2 + 4, "+$" + d[0], "lbl strong", "end");
+      text(s, x0 + w + 8, y + h / 2 + 4, fmtPct(d[1]), "lbl two", "start");
+      const hit = el("rect", { x: m.l, y: y - 3, width: W_ - m.l - m.r, height: 26, class: "hit" }, s);
+      hit.addEventListener("mousemove", ev => showTip(`<b>up +$${d[0]} at some point</b>\n${fmtPct(d[1])} of sessions get there within 100 hands`, ev));
+      hit.addEventListener("mouseleave", hideTip);
+    });
+    tableIn("t-reach", ["Target", "Reached within 100 hands"], Rr.map(d => ["+$" + d[0], fmtPct(d[1], 2)]));
+  })();
+
+  // ---- next-hand EV by position ----
+  (function () {
+    const C = R.cond, W_ = 900, H_ = 320, m = { t: 20, r: 24, b: 40, l: 56 };
+    const s = svgIn("c-cond", W_, H_);
+    const xs = linScale(-285, 330, m.l, W_ - m.r), ys = linScale(-0.4, 0.25, H_ - m.b, m.t);
+    const grid = el("g", { class: "grid" }, s);
+    niceTicks(-0.4, 0.2, 0.1).forEach(v => { el("line", { x1: m.l, x2: W_ - m.r, y1: ys(v), y2: ys(v) }, grid); text(s, m.l - 8, ys(v) + 4, fmtMoney(v, 2), "lbl", "end"); });
+    el("line", { x1: m.l, x2: W_ - m.r, y1: ys(0), y2: ys(0), class: "zero" }, s);
+    el("line", { x1: m.l, x2: W_ - m.r, y1: ys(-R.per_hand_cost), y2: ys(-R.per_hand_cost), stroke: css("--green"), "stroke-width": 1.5 }, s);
+    text(s, W_ - m.r, ys(-R.per_hand_cost) - 6, `overall −$${R.per_hand_cost.toFixed(3)}`, "lbl strong", "end");
+    niceTicks(-270, 300, 60).forEach(v => text(s, xs(v), H_ - m.b + 18, fmtMoney(v, 0), "lbl", "middle"));
+    text(s, (m.l + W_ - m.r) / 2, H_ - 4, "session profit going into the hand ($15 buckets)", "lbl two", "middle");
+    C.forEach(d => {
+      const x = xs(d.from + 7.5);
+      el("line", { x1: x, x2: x, y1: ys(d.ev - d.se), y2: ys(d.ev + d.se), stroke: css("--green"), "stroke-width": 1.5 }, s);
+      const c = el("circle", { cx: x, cy: ys(d.ev), r: 4, fill: css("--green"), stroke: css("--surface"), "stroke-width": 2, class: "dot" }, s);
+      const hit = el("rect", { x: x - 7, y: m.t, width: 14, height: H_ - m.t - m.b, class: "hit" }, s);
+      hit.addEventListener("mousemove", ev => { c.setAttribute("r", 5.5); showTip(`<b>going in ${fmtMoney(d.from, 0)} to ${fmtMoney(d.to, 0)}</b>\nnext hand averages ${fmtMoney(d.ev, 3)} ± ${d.se.toFixed(3)}\n${d.n.toLocaleString()} hands`, ev); });
+      hit.addEventListener("mouseleave", () => { c.setAttribute("r", 4); hideTip(); });
+    });
+    tableIn("t-cond", ["Position going in", "Hands", "Next hand averages", "± 1 SE"], C.map(d => [`${fmtMoney(d.from, 0)} to ${fmtMoney(d.to, 0)}`, d.n.toLocaleString(), fmtMoney(d.ev, 4), d.se.toFixed(4)]));
+  })();
+
+  // ---- demo sparkline ----
+  (function () {
+    const P = [0].concat(R.demo.path), W_ = 900, H_ = 260, m = { t: 20, r: 24, b: 40, l: 56 };
+    const s = svgIn("c-demo", W_, H_);
+    const lo = Math.min(...P), hi = Math.max(...P);
+    const xs = linScale(0, P.length - 1, m.l, W_ - m.r), ys = linScale(Math.floor(lo / 50) * 50 - 25, Math.ceil(hi / 50) * 50 + 25, H_ - m.b, m.t);
+    const grid = el("g", { class: "grid" }, s);
+    niceTicks(Math.floor(lo / 50) * 50, Math.ceil(hi / 50) * 50, 50).forEach(v => { el("line", { x1: m.l, x2: W_ - m.r, y1: ys(v), y2: ys(v) }, grid); text(s, m.l - 8, ys(v) + 4, fmtMoney(v, 0), "lbl", "end"); });
+    el("line", { x1: m.l, x2: W_ - m.r, y1: ys(0), y2: ys(0), class: "zero" }, s);
+    niceTicks(0, 100, 20).forEach(v => text(s, xs(v), H_ - m.b + 18, String(v), "lbl", "middle"));
+    text(s, (m.l + W_ - m.r) / 2, H_ - 4, "hand", "lbl two", "middle");
+    const line = "M" + P.map((v, i) => `${xs(i)},${ys(v)}`).join("L");
+    el("path", { d: line + `L${xs(P.length - 1)},${ys(0)}L${xs(0)},${ys(0)}Z`, fill: css("--green-wash"), stroke: "none" }, s);
+    el("path", { d: line, fill: "none", stroke: css("--green"), "stroke-width": 2, "stroke-linejoin": "round" }, s);
+    const pk = R.demo.peak_hand;
+    el("circle", { cx: xs(pk), cy: ys(P[pk]), r: 4.5, fill: css("--green"), stroke: css("--surface"), "stroke-width": 2 }, s);
+    text(s, xs(pk) + 8, ys(P[pk]) - 6, `peak ${fmtMoney(P[pk], 2)} after hand ${pk}`, "lbl strong");
+    const last = P.length - 1;
+    el("circle", { cx: xs(last), cy: ys(P[last]), r: 4.5, fill: css("--green"), stroke: css("--surface"), "stroke-width": 2 }, s);
+    text(s, xs(last) - 8, ys(P[last]) + 16, `finish ${fmtMoney(P[last], 2)}`, "lbl strong", "end");
+    const cross = el("line", { x1: 0, x2: 0, y1: m.t, y2: H_ - m.b, stroke: css("--ink-2"), "stroke-width": 1, visibility: "hidden" }, s);
+    const hit = el("rect", { x: m.l, y: m.t, width: W_ - m.l - m.r, height: H_ - m.t - m.b, class: "hit" }, s);
+    hit.addEventListener("mousemove", ev => {
+      const r = s.getBoundingClientRect(); const px = (ev.clientX - r.left) / r.width * W_;
+      const n = Math.max(0, Math.min(last, Math.round(xs.inv(px))));
+      cross.setAttribute("x1", xs(n)); cross.setAttribute("x2", xs(n)); cross.setAttribute("visibility", "visible");
+      showTip(`<b>after hand ${n}</b>\n${fmtMoney(P[n], 2)} · bankroll $${(300 + P[n]).toFixed(2)}`, ev);
+    });
+    hit.addEventListener("mouseleave", () => { cross.setAttribute("visibility", "hidden"); hideTip(); });
+    tableIn("t-demo", ["Hand", "Profit", "Bankroll"], P.map((v, i) => [i, fmtMoney(v, 2), "$" + (300 + v).toFixed(2)]).filter((r, i) => i % 5 === 0 || i === last));
+  })();
+})();
+</script>

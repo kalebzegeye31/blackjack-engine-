@@ -117,7 +117,7 @@ def payload(account_id, extra=None):
     snap["session"] = dict(snap["session"], id=live.session_id, number=live.number)
     snap["all_time"] = all_time_marks(account_id)
     if snap.get("analysis"):
-        snap["explanation"] = coach.explain(snap["analysis"])
+        snap["explanation"] = explain(snap["analysis"], live.table.rules)
     if extra:
         snap.update(extra)
     return snap
@@ -146,6 +146,23 @@ def all_time_marks(account_id):
         "chips": t.get("chips", 0.0),
         "on_table": round(on_table, 2),
     }
+
+
+def explain(analysis, rules):
+    """
+    coach.py's passage for this hand, plus a warning when the table has moved it.
+
+    The passages are written for the standard six-deck table. A few squares move
+    under a different soft-17 or double-after-split rule, and on those the passage
+    would otherwise contradict the verdict sitting right above it.
+    """
+    out = coach.explain(analysis)
+    coords = R.parse_cell(analysis.get("cell") or "")
+    if coords:
+        note = R.rule_note(rules, *coords)
+        if note:
+            out = dict(out, rule_note=note)
+    return out
 
 
 def profile_for(account_id, rules=None):

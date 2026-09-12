@@ -250,6 +250,59 @@ def chart_move(rules, section, row, up):
 
 
 # ---------------------------------------------------------------------------
+# When the table's rules move a square, the explanation for it needs saying.
+#
+# coach.py writes one passage per square for the standard table -- six decks,
+# dealer stands on all 17s, doubling allowed after a split -- and several of
+# those passages state which table they are describing. Change the rule in Setup
+# and the passage is still correct about the standard game and wrong about yours,
+# so the caller gets a sentence to put next to it. The words live here rather
+# than in coach.py because coach.py is about hands, and this is about rooms.
+# ---------------------------------------------------------------------------
+
+_WHY_MOVED = {
+    "hit_soft_17": "a dealer who has to hit a soft 17 busts more often and finishes "
+                   "higher when they don't, which is worth one more bet here",
+    "das": "splitting is worth less when you cannot double the halves, and this pair "
+           "is one of the ones that stops being worth it",
+}
+
+
+def moved_by_rules(rules, section, row, up):
+    """
+    Has this square moved away from the standard table?
+
+    Returns (standard move, your move, which rule did it) or None. Only the two
+    rules that actually shift the grid are considered, and only one of them can
+    have moved any given square.
+    """
+    live = chart_move(rules, section, row, up)
+    base = chart_move(DEFAULT_RULES, section, row, up)
+    if live == base:
+        return None
+    culprit = "hit_soft_17" if rules["hit_soft_17"] and (
+        chart_move(dict(rules, das=True), section, row, up) == live) else "das"
+    return (base, live, culprit)
+
+
+def rule_note(rules, section, row, up):
+    """One sentence, or nothing, for a square your table plays differently."""
+    moved = moved_by_rules(rules, section, row, up)
+    if not moved:
+        return None
+    base, live, culprit = moved
+    return ("The explanation below is written for the usual table. Yours is not that "
+            "table: %s, so the play here is %s rather than %s \u2014 %s."
+            % (("the dealer hits soft 17" if culprit == "hit_soft_17"
+                else "there is no doubling after a split"),
+               MOVE_WORD.get(live, live), MOVE_WORD.get(base, base),
+               _WHY_MOVED[culprit]))
+
+
+MOVE_WORD = {"H": "hit", "S": "stand", "D": "double", "Ds": "double", "P": "split"}
+
+
+# ---------------------------------------------------------------------------
 # How often each cell actually turns up at a real table. Used to weight the
 # skill score (a mistake you make twice an hour matters more than one you make
 # twice a year) and to drive the "rare hands" quiz.

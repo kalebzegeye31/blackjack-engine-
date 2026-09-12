@@ -422,6 +422,7 @@ function drawIntu() {
   }
   const terms = e.terms || [];
   box.innerHTML =
+    (e.rule_note ? '<div class="note">' + esc(e.rule_note) + "</div>" : "") +
     '<div class="hook">' + link(e.hook, terms) + "</div>" +
     '<div class="prose">' + e.paragraphs.map((p) => "<p>" + link(p, terms) + "</p>").join("") + "</div>" +
     '<div class="pic">' + e.picture + "</div>" +
@@ -968,6 +969,7 @@ function quizFeedback(last, q) {
     "</h3><p>" + esc(last.cell) + " → <kbd>" + MOVE[last.answer] + "</kbd>" +
     (last.correct ? "" : ". You said <kbd>" + MOVE[last.chose] + "</kbd>, which gives up <b>" +
       last.cost.toFixed(3) + "</b> per dollar") + ".</p></div>" +
+    (e && e.rule_note ? '<div class="note">' + esc(e.rule_note) + "</div>" : "") +
     (e
       ? '<div class="hook" style="margin-top:14px">' + link(e.hook, terms) + "</div>" +
         '<div class="prose">' + e.paragraphs.map((p) => "<p>" + link(p, terms) + "</p>").join("") + "</div>" +

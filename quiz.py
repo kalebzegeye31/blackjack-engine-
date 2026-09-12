@@ -151,7 +151,7 @@ def build(section, row, up, rules, rng=None, index=0):
     can_double = len(cards) == 2
     can_split = section == "pair"
     code = R.chart_move(rules, section, row, up)
-    move, _ = R.resolve(code, can_double)
+    move, fell_back = R.resolve(code, can_double)
     total, soft = E.hand_value(cards)
 
     return {
@@ -161,7 +161,7 @@ def build(section, row, up, rules, rng=None, index=0):
         "cards": cards, "up_card": up_card,
         "total": total, "soft": soft,
         "can_double": can_double, "can_split": can_split,
-        "answer": move, "code": code,
+        "answer": move, "code": code, "fallback": fell_back,
         "rarity": R.cell_frequency(section, row, up),
     }
 
@@ -205,17 +205,19 @@ def grade(question, chose, rules, decks=6):
 
     analysis = {
         "kind": "play",
+        "cell": question["cell"],
         "hand_kind": question["section"],
         "pair": question["row"] if question["section"] == "pair" else None,
         "total": total, "soft": soft, "up": up,
         "chart_move": question["answer"],
+        "fallback": question.get("fallback", False),
         "bust": odds.bust_chance(total, soft),
         "dealer_bust": odds.dealer_bust(),
     }
-    try:
-        explanation = coach.explain(analysis)
-    except Exception:
-        explanation = None
+    explanation = coach.explain(analysis)
+    note = R.rule_note(rules, question["section"], question["row"], up)
+    if note:
+        explanation = dict(explanation, rule_note=note)
 
     return {
         "correct": correct,

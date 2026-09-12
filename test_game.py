@@ -237,6 +237,47 @@ check("and to the table maximum",
       Table(config={"others": 0, "table_min": 25, "table_max": 100},
             bankroll=5000.0).clamp_bet(9999) == 100)
 
+print("\nevery hand has words to go with it")
+
+# coach.py keys its passages by (hand kind, total or pair, upcard). game.py's
+# analyse() is what fills that in, so the two have to agree about every square
+# the chart can put in front of you -- under every rule set, and whether or not
+# you are allowed to double.
+import coach
+
+broken, noted = [], []
+for name, rset in (("S17+DAS", R.DEFAULT_RULES),
+                   ("H17", R.normalise({"hit_soft_17": True})),
+                   ("no-DAS", R.normalise({"das": False}))):
+    for section, row, up, code in R.cells_for(rset):
+        for can_double in (True, False):
+            hand = [card(r) for r in R.cards_for_cell(section, row)]
+            move, fell_back = R.resolve(code, can_double)
+            total, soft = E.hand_value(hand)
+            a = {"kind": "play", "cell": R.cell_name(section, row, up),
+                 "hand_kind": section, "pair": row if section == "pair" else None,
+                 "total": total, "soft": soft, "up": up,
+                 "chart_move": move, "fallback": fell_back}
+            try:
+                out = coach.explain(a)
+                if not ({"hook", "paragraphs", "picture", "remember", "terms"} <= set(out)
+                        and out["hook"] and out["paragraphs"] and out["remember"]):
+                    broken.append((name, a["cell"], can_double, "thin"))
+            except Exception as exc:                      # noqa: BLE001 - reporting it
+                broken.append((name, a["cell"], can_double, repr(exc)))
+        if R.rule_note(rset, section, row, up):
+            noted.append((name, R.cell_name(section, row, up)))
+
+check("coach.py has a passage for all 300 squares, every rule set, doubled or not",
+      not broken, "%d calls, %d broken %s" % (3 * 300 * 2, len(broken), broken[:2]))
+check("insurance has one too",
+      bool(coach.explain({"kind": "insurance"})["remember"]))
+check("the squares the rules move are flagged, so the words cannot contradict the verdict",
+      len(noted) == 10, "%d flagged" % len(noted))
+check("and nothing is flagged on the standard table",
+      not any(R.rule_note(R.DEFAULT_RULES, s, r, u)
+              for s, r, u, _ in R.cells_for(R.DEFAULT_RULES)))
+
 print("\n%d passed, %d failed" % (len(PASS), len(FAIL)))
 if FAIL:
     for f in FAIL:

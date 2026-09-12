@@ -1,0 +1,9 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Your data. One file, created on first run, never meant to be shared -- and
+# committing it means two people's accounts and money overwrite each other.
+blackjack.db
+blackjack.db-shm
+blackjack.db-wal

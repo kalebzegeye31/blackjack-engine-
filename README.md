@@ -1,8 +1,9 @@
 # Blackjack trainer
 
-A blackjack table that scores you. Every decision gets marked against the strategy
-chart *and* against the cards actually left in the shoe, and your bet sizes get
-marked too. Runs entirely on your own machine.
+A blackjack table that scores you, and a set of tools for working out what your
+mistakes are actually costing. Every decision is marked against the strategy
+chart *and* against the cards actually left in the shoe. Runs entirely on your
+own machine.
 
 ## Running it
 
@@ -22,49 +23,106 @@ python3 server.py --port 9000      # different port
 python3 server.py --no-browser     # don't open a browser
 ```
 
-## Where your data lives
+## How the money works
 
-One file: `blackjack.db`, created next to `server.py` the first time you run it.
-It's a normal SQLite database. Nothing is sent anywhere. Delete the file and
-every profile and statistic is gone.
+An account starts with **nothing**. There is no automatic top-up.
 
-You can poke at it directly if you want:
+1. **The first time you sit down** you choose what you are carrying — $100, $250,
+   $500 or $1000 — and it is granted to you. That is the only free money.
+2. **Buying in** moves chips from your stack onto the table. **Standing up** brings
+   whatever is left back.
+3. **If you run out**, the session ends. To sit down again you need chips, and the
+   only way to get more is the **Quiz** tab: ten questions, $10 in chips for every
+   one you get right.
+
+Every movement is written to a ledger, so the all-time figure is:
 
 ```
-sqlite3 blackjack.db "SELECT cell, COUNT(*) FROM decisions WHERE correct=0 GROUP BY cell ORDER BY 2 DESC;"
+everything you're worth  −  everything you were given  −  everything you won at the quiz
 ```
+
+which can only have come from the table. It is the one number that cannot flatter
+you, and it is the reason the free top-up had to go: money that appears from
+nowhere makes the scoreboard meaningless.
 
 ## The tabs
 
-**Table** — play. The middle is the table itself. The left column shows the working
-behind whatever you just did: which cards are still unseen, where the dealer is
-likely to end up, and what each option was worth. The right column is the same
-thing in plain language, with the one line worth memorising.
+**Table** — play. The left column explains the hand you just played in plain
+language. The right column is this session: hands played, up or down, high and
+low, how you are playing, and your all-time records next to it.
 
 **Betting** — how much to put out, and whether your last bet made sense. Flags
 raising after a loss, betting too much of what you have, and playing a table
 that's too expensive for your bankroll.
 
-**Ledger** — your record. Accuracy, what you keep getting wrong, and the money.
+**Chart** — the full basic strategy chart, hard totals, soft totals and pairs.
+Click any square for what it means and your own record on it. It redraws itself
+for whatever rules you have set, and your decisions are graded against the same
+grid, so the two can never disagree.
 
-**Glossary** — every term the app uses, explained from scratch. Anything underlined
-elsewhere opens the same explanation right where you're standing.
+**Quiz** — the chart without the waiting. Drill your weak spots, the hands you
+have actually got wrong, the rare corners you never get dealt, or build your own
+filter. Or play for chips.
 
-**Setup** — decks, table minimum, how many other people are at the table, and how
-deep they deal before reshuffling.
+**Analysis** — four things: how well you play and what it costs per hour, a
+simulator that runs the game hundreds of times so you can see the spread rather
+than the average, a bankroll calculator, and the all-time ledger.
+
+**Account** — who you are, the ledger, what you keep missing, and a straight
+assessment of where you stand. Log out here.
+
+**Setup** — decks, table limits, other players, penetration, and the rules that
+change the chart: soft 17, double after split, re-splitting aces, and what a
+blackjack pays.
 
 ## Keyboard
 
-`H` hit · `S` stand · `D` double · `P` split · `Space` deal / next hand
+`H` hit · `S` stand · `D` double · `P` split · `Space` deal / next hand.
+The same keys answer quiz questions.
+
+## Accuracy, and why there are two numbers
+
+Plain accuracy is a bad measure of a card player. Most hands you are dealt are
+trivial — a hard 20, a hard 8 — and getting those right forever holds a number in
+the nineties while six cells you keep fluffing quietly cost you money. Worse, the
+number only goes up, so it stops telling you anything.
+
+So there is a second number, **sharpness**. Every square of the chart carries a
+weight:
+
+- **difficulty** — driven by your recent record on that square. Get it right a few
+  times running and the weight decays towards a floor; miss it and it springs back.
+  Recent results count for far more than old ones.
+- **cost** — how much expected value your mistakes on that square actually give
+  away. Misplaying 16 against a 10 costs almost nothing; missing a double on 11
+  costs a lot. Expensive squares weigh double.
+- **exposure** — a square you have seen twice cannot swing the score. Weight ramps
+  in as evidence accumulates.
+
+Sharpness is the weighted average of how well you play each square. It is held
+back until there is enough evidence to mean anything: below 250 decisions it is
+blended towards plain accuracy so it doesn't lurch about while you are finding
+your feet.
+
+The gap between the two numbers is the part you are still getting away with. A
+player at 85% accuracy and 59% sharpness is not 85% good — they are getting the
+obvious hands right and losing the same few awkward ones over and over.
+
+The Analysis tab turns that into money: how often you miss each square, times what
+that miss costs, times how often the hand turns up, times 80 hands an hour.
 
 ## How it's put together
 
 ```
 server.py    HTTP server and JSON API. Standard library only.
 engine.py    The maths. Pure functions, no state, no I/O.
-game.py      One table: shoe, seats, whose turn, the money.
+rules.py     The rule set, and the strategy chart that follows from it.
+game.py      One table for one session: shoe, seats, whose turn, the money.
+sim.py       A second, stripped table that deals 200,000 hands a second.
+mastery.py   How well you actually know the chart.
+quiz.py      Questions, drawn from wherever your record is worst.
 coach.py     The words. Explanations and the glossary.
-db.py        SQLite storage.
+db.py        SQLite storage: accounts, sessions, decisions, the chip ledger.
 static/      The browser side: one HTML file, one CSS file, one JS file.
 ```
 
@@ -76,10 +134,17 @@ import engine as E
 shoe = [{"rank": r, "suit": s, "red": red}
         for _ in range(6) for s, red in E.SUITS for r in E.RANKS]
 odds = E.Odds(shoe, up=10)
-odds.ev_stand(16)          # -0.5404
+odds.ev_stand(16)           # -0.5404
 odds.ev_hit(16, soft=False) # -0.5398
 odds.dealer_bust()          # 0.230
 ```
+
+There are deliberately **two** blackjack engines. `game.py` deals one careful hand
+at a time and computes exact odds for every option from the cards actually left —
+right for a trainer, hopeless for a simulation at a few hundred hands a second.
+`sim.py` is the same rules with bare integers and a dictionary lookup for the
+chart. `validate.py` plays both and checks they agree, which is the point: they
+are separate code, so if one gets a rule wrong they diverge.
 
 ## The thing that makes this different
 
@@ -98,41 +163,81 @@ cards can — but they burn through the shoe faster, so the mix of what's left
 drifts further. Set the shuffling-machine option in Setup and watch that effect
 disappear completely, which is exactly why casinos bought them.
 
-## Rules as configured
+## Dealing, as a real table does it
 
-Six decks, dealer stands on all 17s, blackjack pays 3 to 2, double on any first
-two cards, double after splitting allowed, split up to four hands, split aces get
-one card each. Other players use basic strategy and don't split, to keep the
-number of hands sane.
+The rules that are easy to get subtly wrong and impossible to notice afterwards:
 
-## Bankroll
+- **Splitting.** The dealer slides one card onto the first half and waits. You play
+  that hand to the end before the second half is touched at all. An earlier version
+  dealt to both halves at once, which quietly taught the wrong thing — you were
+  choosing for hand one while already looking at hand two.
+- **Re-splitting** inserts the new hand next in line, not last.
+- **Split aces** get exactly one card each and are finished, unless the house allows
+  re-splitting them. Twenty-one on a split hand is 21, not a blackjack.
+- **The dealer peeks** under a ten or an ace, and the hand ends there if they have it.
+- **Insurance** is offered before the peek. Holding a blackjack against an ace, it
+  is offered as even money, which is the same bet wearing a different hat.
+- **The dealer doesn't draw** when every hand you hold has busted — but the hole card
+  is still turned over.
+- **The hole card isn't counted** while it's face down.
+- **The shoe reshuffles at the cut card**, between rounds, never mid-hand.
 
-You start with $100. If you drop below one table minimum you're given another
-$100 automatically, and it's counted. The "all time" figure is everything you
-have now minus everything you've been given, so it never resets. That's
-deliberate — it's the only number that can't flatter you.
+Configurable, because real tables differ: soft 17, double after split, re-splitting
+aces, how many hands you may split to, and whether a blackjack pays 3:2 or 6:5.
+Each one changes the chart, and only where it should.
+
+Not implemented: surrender, European no-hole-card, doubling for less.
 
 ## Checks it passes
 
-`python3 test_engine.py` compares the maths against published figures:
+`python3 test_engine.py` — the maths against published figures:
 
 - Standing on 16 against a 10: −0.5404 (published −0.5404)
 - Hitting 16 against a 10: −0.5398 (published −0.5398)
 - Doubling 11 against a 6: +0.6674 (published +0.6674)
 - Dealer bust rates from every upcard, to a tenth of a percent
-- All 200 chart cells agree with the computed best play except two known
+- All 300 chart cells agree with the computed best play except two known
   borderline ones (soft 13 v 5 and soft 15 v 4), which differ by 0.007 and
   0.001 — smaller than the difference between six decks and infinite decks
+- The chart changes with the rules, and only in the cells it should
 
-`python3 validate.py` plays the chart perfectly for tens of thousands of rounds
-through the real game code:
+`python3 test_game.py` — 42 checks that the table deals like a real one, including
+every rule in the list above.
 
-- Chart accuracy comes out at exactly 100%
-- House edge lands at −0.56% ± 0.47%, against a published −0.43%
+`python3 test_db.py` — 27 checks that the chip ledger adds up, and that a database
+from the previous version upgrades without losing a row.
 
-That second one is the useful test: it can only come out right if dealing,
-settlement, blackjack payouts, doubling, splitting, insurance and the dealer's
-drawing rules are all correct together.
+`python3 validate.py` — the slow one, about 90 seconds (`--quick` for a tenth of it):
+
+- Chart accuracy through the real game code comes out at exactly 100%
+- The two engines agree on the house edge to a fraction of a standard error
+- That figure matches the published −0.43%
+- Each rule change costs what it is supposed to cost, measured on matched shoes
+  so the shuffle cancels out: hitting soft 17 −0.22%, no double after split −0.14%,
+  6:5 blackjacks −1.36%
+
+That last one is worth a footnote. Pairing the runs makes the measurement more
+precise than the figure everyone quotes: 6:5 is usually given as −1.39%, and the
+measurement kept landing on −1.361% ± 0.006%. It is exactly computable — you are
+dealt a natural 4.749% of the time with six decks, the dealer matches it in 4.562%
+of those (a push, paid nothing either way), and the rest are paid 0.3 of a bet
+short, giving 1.3597%. The round number was the thing that was wrong.
+
+## Where your data lives
+
+One file: `blackjack.db`, created next to `server.py` the first time you run it.
+It's a normal SQLite database. Nothing is sent anywhere. Delete the file and
+every account and statistic is gone.
+
+A database from the previous version is upgraded in place on first run: the old
+bankroll becomes chips, the old deposits become chips you were given, and every
+decision, bet and round is kept.
+
+You can poke at it directly if you want:
+
+```
+sqlite3 blackjack.db "SELECT cell, COUNT(*) FROM decisions WHERE correct=0 GROUP BY cell ORDER BY 2 DESC LIMIT 10;"
+```
 
 ## Known limits
 
@@ -140,5 +245,9 @@ drawing rules are all correct together.
   scored very slightly conservatively.
 - Expected values assume each draw is independent within a hand. With 200+ cards
   unseen the error is in the fourth decimal place.
-- The table state lives in memory, so restarting the server starts a fresh shoe.
-  Your money and statistics are on disk and survive.
+- The table lives in memory. If the server restarts mid-session the session is
+  closed and the money handed back from the last recorded position; your chips,
+  history and statistics are on disk and survive.
+- There are no passwords. Logging out returns you to the list of players on this
+  machine — there is nothing here to protect from someone who already has your
+  computer.

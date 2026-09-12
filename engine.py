@@ -9,7 +9,7 @@ probability is computed from the cards that are actually still unseen,
 so the answers shift as the shoe gets used up.
 """
 
-from functools import lru_cache
+import rules as R
 
 RANKS = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"]
 SUITS = [("\u2660", False), ("\u2665", True), ("\u2666", True), ("\u2663", False)]
@@ -90,10 +90,11 @@ class Odds:
     the dealer's face-down card. `up` is the dealer's face-up value.
     """
 
-    def __init__(self, unseen_cards, up):
+    def __init__(self, unseen_cards, up, hit_soft_17=False):
         self.counts = composition(unseen_cards)
         self.total = sum(self.counts[2:12])
         self.up = up
+        self.h17 = bool(hit_soft_17)
         self.probs = [
             (v, self.counts[v] / self.total)
             for v in range(2, 12)
@@ -114,7 +115,7 @@ class Odds:
             return self._dealer_memo[key]
         if total > 21:
             out = {"bust": 1.0}
-        elif total >= 17:
+        elif total > 17 or (total == 17 and not (soft and self.h17)):
             out = {str(total): 1.0}
         else:
             out = {}
@@ -214,92 +215,61 @@ class Odds:
 
 
 # ---------------------------------------------------------------------------
-# Basic strategy (6 decks, dealer stands on all 17s, double after split)
-# Columns are dealer 2,3,4,5,6,7,8,9,10,A
+# Basic strategy. The grid itself lives in rules.py so it can vary with the
+# table rules and be drawn on screen; this is the part that reads a real hand.
 # ---------------------------------------------------------------------------
 
-HARD = {
-    8:  "HHHHHHHHHH",
-    9:  "HDDDDHHHHH",
-    10: "DDDDDDDDHH",
-    11: "DDDDDDDDDH",
-    12: "HHSSSHHHHH",
-    16: "SSSSSHHHHH",
-    21: "SSSSSSSSSS",
-}
-SOFT = {
-    "2-3": "HHHDDHHHHH",
-    "4-5": "HHDDDHHHHH",
-    "6":   "HDDDDHHHHH",
-    "7":   "SDDDDSSHHH",
-    "8+":  "SSSSSSSSSS",
-}
-PAIRS = {
-    11: "PPPPPPPPPP",
-    2:  "PPPPPPHHHH",
-    3:  "PPPPPPHHHH",
-    4:  "HHHPPHHHHH",
-    5:  "DDDDDDDDHH",
-    6:  "PPPPPHHHHH",
-    7:  "PPPPPPHHHH",
-    8:  "PPPPPPPPPP",
-    9:  "PPPPPSPPSS",
-    10: "SSSSSSSSSS",
-}
-
-ACTION_NAME = {"H": "hit", "S": "stand", "D": "double", "P": "split"}
-
-
-def up_index(up):
-    return 9 if up == 11 else up - 2
-
-
-def chart_play(cards, up, can_double, can_split):
+def classify(cards, can_split):
     """
-    What the printed chart says to do.
+    Which row of the chart this hand sits on.
 
-    Returns a dict with the move plus a human label for the row, so the UI
-    can show you which line of the chart you were on.
+    Returns (section, row). A pair only counts as a pair while you can still
+    split it \u2014 once you can't, 8,8 is just a hard 16 and the chart agrees.
     """
-    i = up_index(up)
-    first_two = len(cards) == 2
-
-    if can_split and first_two and card_value(cards[0]["rank"]) == card_value(cards[1]["rank"]):
-        pair = card_value(cards[0]["rank"])
-        move = PAIRS[pair][i]
-        label = "pair of " + ("aces" if pair == 11 else str(pair) + "s")
-        if move == "P":
-            return {"move": "P", "row": label, "kind": "pair", "pair": pair, "fallback": False}
-        if move == "D":
-            return {"move": "D" if can_double else "H", "row": "pair of 5s (played as a hard 10)",
-                    "kind": "pair", "pair": pair, "fallback": not can_double}
-        return {"move": move, "row": label, "kind": "pair", "pair": pair, "fallback": False}
-
+    if can_split and len(cards) == 2 and card_value(cards[0]["rank"]) == card_value(cards[1]["rank"]):
+        return ("pair", card_value(cards[0]["rank"]))
     total, soft = hand_value(cards)
-
-    if soft and total <= 12:
-        return {"move": "H", "row": "soft " + str(total), "kind": "soft",
-                "total": total, "fallback": False}
-
     if soft:
-        other = total - 11
-        key = "2-3" if other <= 3 else "4-5" if other <= 5 else "6" if other == 6 else "7" if other == 7 else "8+"
-        move = SOFT[key][i]
-        fallback = False
-        if move == "D" and not can_double:
-            move = "S" if other == 7 else "H"
-            fallback = True
-        return {"move": move, "row": "soft %d (A,%d)" % (total, other), "kind": "soft",
-                "total": total, "fallback": fallback}
+        if total <= 12:
+            # A,A that can no longer be split, or a soft total that dropped: treat
+            # as the soft row it is, clamped to the lowest row the chart holds
+            return ("soft", max(2, total - 11))
+        return ("soft", min(9, total - 11))
+    return ("hard", max(5, min(21, total)))
 
-    key = 8 if total <= 8 else total if total <= 11 else 12 if total == 12 else 16 if total <= 16 else 21
-    move = HARD[key][i]
-    fallback = False
-    if move == "D" and not can_double:
-        move = "H"
-        fallback = True
-    return {"move": move, "row": "hard " + str(total), "kind": "hard",
-            "total": total, "fallback": fallback}
+
+def chart_play(cards, up, can_double, can_split, rules=None):
+    """
+    What the chart says to do.
+
+    Returns the move plus a human label for the row, so the UI can show you
+    which line of the chart you were on, and `fallback` when the chart wanted a
+    double the table wouldn't let you make.
+    """
+    rset = rules or R.DEFAULT_RULES
+    section, row = classify(cards, can_split)
+    code = R.chart_move(rset, section, row, up)
+    move, fell_back = R.resolve(code, can_double)
+
+    if section == "pair":
+        label = "pair of " + ("aces" if row == 11 else str(row) + "s")
+        if row == 5 and move != "P":
+            label = "pair of 5s (played as a hard 10)"
+        return {"move": move, "row": label, "kind": "pair", "pair": row,
+                "code": code, "cell": R.cell_name(section, row, up), "fallback": fell_back}
+    if section == "soft":
+        total = row + 11
+        return {"move": move, "row": "soft %d (A,%d)" % (total, row), "kind": "soft",
+                "total": total, "code": code, "cell": R.cell_name(section, row, up),
+                "fallback": fell_back}
+    return {"move": move, "row": "hard %d" % row, "kind": "hard", "total": row,
+            "code": code, "cell": R.cell_name(section, row, up), "fallback": fell_back}
+
+
+# Kept so test_engine.py can still walk the chart cell by cell.
+HARD = {k: "".join(m[0] for m in v) for k, v in R.grid(R.DEFAULT_RULES)["hard"].items()}
+SOFT = {str(k): "".join(m[0] for m in v) for k, v in R.grid(R.DEFAULT_RULES)["soft"].items()}
+PAIRS = {k: "".join(m[0] for m in v) for k, v in R.grid(R.DEFAULT_RULES)["pair"].items()}
 
 
 # ---------------------------------------------------------------------------

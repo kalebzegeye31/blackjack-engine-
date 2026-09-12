@@ -1,14 +1,22 @@
 """
-game.py — one blackjack table.
+game.py — one blackjack table, for one session.
 
 Holds the shoe, the seats, whose turn it is, and the money. Every decision
 you make gets handed to engine.py to be scored before it's applied.
+
+The table deals the way a real one does. That matters most when you split: the
+dealer slides one card onto the first half and waits for you to finish it before
+the second half is touched at all. An earlier version dealt to both halves at
+once, which quietly taught the wrong thing — you were choosing for hand one
+while already looking at hand two.
 """
 
 import random
-import engine as E
 
-MIN_CARDS = 20
+import engine as E
+import rules as R
+
+MIN_CARDS = 15          # never deal off the bottom of the shoe
 
 
 def fresh_shoe(decks):
@@ -22,19 +30,57 @@ def fresh_shoe(decks):
     return cards
 
 
+def blank_session(bankroll):
+    return {
+        "hands": 0, "rounds": 0, "decisions": 0, "correct": 0,
+        "wagered": 0.0, "net": 0.0, "ev_lost": 0.0,
+        "start": float(bankroll), "peak": float(bankroll), "trough": float(bankroll),
+        "wins": 0, "losses": 0, "pushes": 0, "blackjacks": 0, "busts": 0,
+        "streak": 0, "best_streak": 0, "shuffles": 0,
+    }
+
+
 class Table:
+    """
+    A table you are sitting at with a fixed buy-in.
+
+    `config` carries both the things about the room (decks, minimum, how many
+    other people) and the rules of the game itself (soft 17, double after split,
+    what a blackjack pays). Everything that can change the strategy chart is in
+    the second group and is normalised through rules.py.
+    """
+
     def __init__(self, config=None, bankroll=100.0):
         self.config = {
             "decks": 6,
             "others": 2,          # other people sitting at the table
             "table_min": 15,
+            "table_max": 500,
             "penetration": 0.75,  # how deep before they reshuffle
+            "hit_soft_17": False,
+            "das": True,
+            "resplit_aces": False,
+            "max_hands": 4,
+            "blackjack_pays": 1.5,
         }
         if config:
             self.config.update({k: v for k, v in config.items() if k in self.config})
+        self.apply_rules()
         self.bankroll = float(bankroll)
+        self.session = blank_session(self.bankroll)
         self.shuffle()
         self.reset_round()
+
+    def apply_rules(self):
+        """Re-derive the strategy rule set and sanity-check the room settings."""
+        self.config.update(R.normalise(self.config))
+        self.config["decks"] = max(1, min(8, int(self.config["decks"])))
+        self.config["others"] = max(0, min(5, int(self.config["others"])))
+        self.config["table_min"] = max(1, int(self.config["table_min"]))
+        self.config["table_max"] = max(self.config["table_min"],
+                                       int(self.config.get("table_max", 500)))
+        self.config["penetration"] = min(0.95, max(0.02, float(self.config["penetration"])))
+        self.rules = R.normalise(self.config)
 
     # ---------------- shoe ----------------
     def shuffle(self):
@@ -47,7 +93,10 @@ class Table:
 
     def draw(self, counted=True):
         if len(self.shoe) < MIN_CARDS:
+            # a real table would have reached the cut card long before this; if we
+            # get here mid-round the honest thing is to reshuffle and say so
             self.shuffle()
+            self.session["shuffles"] += 1
         card = self.shoe.pop()
         self.dealt += 1
         if counted:
@@ -65,6 +114,9 @@ class Table:
         extra = [self.dealer[1]] if (self.hole_hidden and len(self.dealer) > 1) else []
         return self.shoe + extra
 
+    def odds(self, up):
+        return E.Odds(self.unseen(), up, hit_soft_17=self.rules["hit_soft_17"])
+
     # ---------------- round ----------------
     def reset_round(self):
         self.dealer = []
@@ -79,16 +131,30 @@ class Table:
         self.last_bet_check = None
         self.verdict = None
         self.round_result = None
+        self.even_money = False
 
     def new_round(self):
         if self.needs_shuffle():
             self.shuffle()
+            self.session["shuffles"] += 1
         self.reset_round()
 
-    def place_bet(self, amount):
-        amount = max(self.config["table_min"], min(float(amount), self.bankroll))
+    def broke(self):
+        """Can't make the smallest bet the table allows. The session is over."""
+        return self.bankroll < self.config["table_min"]
+
+    def clamp_bet(self, amount):
+        try:
+            amount = float(amount)
+        except (TypeError, ValueError):
+            amount = self.config["table_min"]
+        ceiling = min(self.bankroll, self.config["table_max"])
+        return max(self.config["table_min"], min(amount, ceiling))
+
+    def place_bet(self, amount, last_bet=None, last_outcome=None):
+        amount = self.clamp_bet(amount)
+        self.last_bet_check = self.judge_bet(amount, last_bet, last_outcome)
         self.bet = amount
-        self.last_bet_check = self.judge_bet(amount)
         self.bankroll -= amount
         self.deal()
         return self.last_bet_check
@@ -97,8 +163,9 @@ class Table:
         self.seats = [{"cards": [], "total": 0, "bust": False}
                       for _ in range(self.config["others"])]
         self.hands = []
-        # one card to each seat left to right, then the dealer, twice over.
-        # you sit at third base, so everyone else is dealt to first.
+        self.dealer = []
+        # one card to each seat left to right, then you, then the dealer, twice
+        # over. You sit at third base, so everyone else is dealt to first.
         for round_no in range(2):
             for seat in self.seats:
                 seat["cards"].append(self.draw())
@@ -108,15 +175,18 @@ class Table:
             else:
                 self.hands[0]["cards"].append(self.draw())
                 self.dealer.append(self.draw(counted=False))  # hole card
+        self.session["rounds"] += 1
         # insurance is offered before the dealer looks at the hole card
         if E.card_value(self.dealer[0]["rank"]) == 11:
+            self.even_money = E.hand_value(self.hands[0]["cards"])[0] == 21
             self.phase = "insurance"
             return
         self.resolve_naturals()
 
     def _new_hand(self, cards, bet):
         return {"cards": cards, "bet": bet, "done": False, "doubled": False,
-                "from_split": False, "split_ace": False, "result": None}
+                "from_split": False, "split_ace": False,
+                "result": None, "net": 0.0}
 
     def reveal(self):
         if len(self.dealer) > 1 and self.hole_hidden:
@@ -124,10 +194,14 @@ class Table:
         self.hole_hidden = False
 
     def resolve_naturals(self):
+        """
+        The dealer peeks under a ten or an ace. If either side has a natural the
+        hand is over before anybody plays.
+        """
         player_nat = E.hand_value(self.hands[0]["cards"])[0] == 21
         dealer_nat = E.hand_value(self.dealer)[0] == 21
         if self.took_insurance and dealer_nat:
-            self.bankroll += self.bet * 1.5   # 0.5 stake back plus 1.0 winnings
+            self.bankroll += self.bet * 1.5   # half-stake back plus 2:1 winnings
         if player_nat or dealer_nat:
             self.reveal()
             self.hands[0]["done"] = True
@@ -140,11 +214,11 @@ class Table:
     def play_seat(self, seat):
         """Other players use basic strategy. They don't split, to keep it simple."""
         for _ in range(12):
-            total, soft = E.hand_value(seat["cards"])
+            total, _ = E.hand_value(seat["cards"])
             if total > 21:
                 break
             play = E.chart_play(seat["cards"], E.card_value(self.dealer[0]["rank"]),
-                                len(seat["cards"]) == 2, False)
+                                len(seat["cards"]) == 2, False, self.rules)
             if play["move"] == "S":
                 break
             seat["cards"].append(self.draw())
@@ -156,20 +230,39 @@ class Table:
 
     # ---------------- decisions ----------------
     def can_double(self, hand):
-        return len(hand["cards"]) == 2 and not hand["split_ace"] and self.bankroll >= hand["bet"]
+        return (len(hand["cards"]) == 2 and not hand["split_ace"]
+                and (hand["from_split"] is False or self.rules["das"])
+                and self.bankroll >= hand["bet"])
+
+    def can_hit(self, hand):
+        """
+        A split ace gets one card and that is the end of it.
+
+        The hand only reaches you at all when the house allows re-splitting and
+        the card was another ace, and the only thing you may do then is split it
+        or leave it. Drawing to it is not on offer at a real table.
+        """
+        return not (hand["split_ace"] and len(hand["cards"]) == 2)
 
     def can_split(self, hand):
-        return (len(hand["cards"]) == 2 and not hand["split_ace"] and len(self.hands) < 4
-                and self.bankroll >= hand["bet"]
-                and E.card_value(hand["cards"][0]["rank"]) == E.card_value(hand["cards"][1]["rank"]))
+        if len(hand["cards"]) != 2 or len(self.hands) >= self.rules["max_hands"]:
+            return False
+        if self.bankroll < hand["bet"]:
+            return False
+        a, b = (E.card_value(c["rank"]) for c in hand["cards"])
+        if a != b:
+            return False
+        if hand["split_ace"] and not self.rules["resplit_aces"]:
+            return False
+        return True
 
     def analyse(self, hand, chosen):
         """Score a decision before applying it."""
         up = E.card_value(self.dealer[0]["rank"])
-        odds = E.Odds(self.unseen(), up)
+        odds = self.odds(up)
         total, soft = E.hand_value(hand["cards"])
         cd, cs = self.can_double(hand), self.can_split(hand)
-        chart = E.chart_play(hand["cards"], up, cd, cs)
+        chart = E.chart_play(hand["cards"], up, cd, cs, self.rules)
 
         options = [
             {"move": "S", "ev": odds.ev_stand(total), "legal": True},
@@ -191,14 +284,15 @@ class Table:
         gap = (best["ev"] - chart_opt["ev"]) if chart_opt else 0.0
         return {
             "kind": "play",
-            "row": chart["row"], "hand_kind": chart["kind"],
+            "row": chart["row"], "hand_kind": chart["kind"], "cell": chart["cell"],
             "pair": chart.get("pair"), "total": total, "soft": soft,
-            "up": up, "chart_move": chart["move"], "fallback": chart["fallback"],
+            "up": up, "chart_move": chart["move"], "chart_code": chart["code"],
+            "fallback": chart["fallback"],
             "chosen": chosen, "correct": chosen == chart["move"],
             "options": [{"move": o["move"], "ev": o["ev"], "legal": o["legal"]} for o in options],
             "best_move": best["move"], "best_ev": best["ev"],
             "chart_ev": chart_opt["ev"] if chart_opt else None,
-            "cost": (best["ev"] - mine["ev"]) if mine else 0.0,
+            "cost": max(0.0, (best["ev"] - mine["ev"])) if mine else 0.0,
             # only call it a deviation if it's worth more than rounding noise
             "deviation": best["move"] != chart["move"] and gap > 0.002,
             "dev_gap": gap,
@@ -210,6 +304,7 @@ class Table:
                             for v in range(2, 12)],
             "unseen": odds.total,
             "true_count": self.true_count(), "running_count": self.running_count,
+            "hand_index": self.active, "hand_count": len(self.hands),
         }
 
     def act(self, move):
@@ -219,9 +314,13 @@ class Table:
         self.verdict = {
             "correct": analysis["correct"], "chosen": move,
             "should": analysis["chart_move"], "row": analysis["row"],
-            "up": "A" if analysis["up"] == 11 else str(analysis["up"]),
+            "up": R.up_label(analysis["up"]),
             "fallback": analysis["fallback"], "kind": "play",
+            "hand_index": self.active, "hand_count": len(self.hands),
         }
+        self.session["decisions"] += 1
+        self.session["correct"] += 1 if analysis["correct"] else 0
+        self.session["ev_lost"] += analysis["cost"] * hand["bet"]
 
         if move == "H":
             hand["cards"].append(self.draw())
@@ -236,27 +335,52 @@ class Table:
             hand["cards"].append(self.draw())
             hand["done"] = True
         elif move == "P":
-            moved = hand["cards"].pop()
-            is_ace = hand["cards"][0]["rank"] == "A"
-            new_hand = self._new_hand([moved], hand["bet"])
-            new_hand["from_split"] = True
-            new_hand["split_ace"] = is_ace
-            hand["from_split"] = True
-            hand["split_ace"] = is_ace
-            self.bankroll -= hand["bet"]
-            hand["cards"].append(self.draw())
-            new_hand["cards"].append(self.draw())
-            if is_ace:
-                hand["done"] = new_hand["done"] = True
-            if E.hand_value(hand["cards"])[0] == 21:
-                hand["done"] = True
-            self.hands.insert(self.active + 1, new_hand)
+            self._split(hand)
 
         self.advance()
         return analysis
 
+    def _split(self, hand):
+        """
+        Split the hand in front of you, casino style.
+
+        The second card slides across to start a new spot, that spot is left face
+        up with a single card, and the dealer deals one card to the hand you are
+        still playing. The new spot gets its card only when the dealer reaches
+        it — which is after this hand is completely finished.
+        """
+        moved = hand["cards"].pop()
+        is_ace = hand["cards"][0]["rank"] == "A"
+
+        new_hand = self._new_hand([moved], hand["bet"])
+        new_hand["from_split"] = True
+        new_hand["split_ace"] = is_ace
+        hand["from_split"] = True
+        hand["split_ace"] = is_ace
+
+        self.bankroll -= hand["bet"]
+        self.hands.insert(self.active + 1, new_hand)
+
+        hand["cards"].append(self.draw())
+        self._close_if_finished(hand)
+
+    def _close_if_finished(self, hand):
+        """
+        Decide whether a freshly two-carded split hand still has a decision in it.
+
+        Split aces get one card and that's the end of it, unless the house lets
+        you re-split them and the card was another ace. Anything that reaches 21
+        is finished too — there is nothing left to choose.
+        """
+        total, _ = E.hand_value(hand["cards"])
+        if hand["split_ace"]:
+            hand["done"] = not self.can_split(hand)
+            return
+        if total >= 21:
+            hand["done"] = True
+
     def insurance(self, take):
-        odds = E.Odds(self.unseen(), 11)
+        odds = self.odds(11)
         p_ten = odds.p(10)
         ev = 3 * p_ten - 1
         if take:
@@ -266,50 +390,114 @@ class Table:
             "kind": "insurance", "took": bool(take), "p_ten": p_ten, "ev": ev,
             "tens_left": odds.counts[10], "unseen": odds.total,
             "correct": bool(take) == (ev > 0),
+            "even_money": self.even_money,
             "true_count": self.true_count(), "running_count": self.running_count,
         }
-        self.verdict = {"kind": "insurance", "correct": not take, "chosen": "take" if take else "decline"}
+        self.verdict = {"kind": "insurance", "correct": not take,
+                        "even_money": self.even_money,
+                        "chosen": "take" if take else "decline"}
+        self.session["decisions"] += 1
+        self.session["correct"] += 0 if take else 1
         self.resolve_naturals()
         return self.last_analysis
 
     def advance(self):
-        while self.active < len(self.hands) and self.hands[self.active]["done"]:
+        """
+        Move to the next hand that still needs a decision.
+
+        A hand created by a split arrives here holding one card. That is the
+        moment the dealer gives it its second — not a moment earlier.
+        """
+        guard = 0
+        while self.active < len(self.hands):
+            hand = self.hands[self.active]
+            if len(hand["cards"]) == 1:
+                hand["cards"].append(self.draw())
+                self._close_if_finished(hand)
+            if not hand["done"]:
+                self.phase = "play"
+                return
             self.active += 1
-        if self.active < len(self.hands):
-            self.phase = "play"
-            return
+            guard += 1
+            if guard > 16:
+                break
+
         self.reveal()
         if any(E.hand_value(h["cards"])[0] <= 21 for h in self.hands):
-            while E.hand_value(self.dealer)[0] < 17:
+            while self._dealer_draws():
                 self.dealer.append(self.draw())
         self.settle()
+
+    def _dealer_draws(self):
+        total, soft = E.hand_value(self.dealer)
+        if total < 17:
+            return True
+        return total == 17 and soft and self.rules["hit_soft_17"]
 
     def settle(self):
         self.reveal()
         dealer_total = E.hand_value(self.dealer)[0]
         dealer_nat = len(self.dealer) == 2 and dealer_total == 21
+        bj_pay = self.rules["blackjack_pays"]
         net = 0.0
+        wagered = 0.0
         for hand in self.hands:
             total = E.hand_value(hand["cards"])[0]
             natural = (not hand["from_split"]) and len(hand["cards"]) == 2 and total == 21
             bet = hand["bet"]
+            wagered += bet
             if natural and dealer_nat:
-                hand["result"] = "push"; self.bankroll += bet
+                hand["result"], gain = "push", 0.0
+                self.bankroll += bet
             elif natural:
-                hand["result"] = "blackjack"; self.bankroll += bet * 2.5; net += bet * 1.5
+                hand["result"], gain = "blackjack", bet * bj_pay
+                self.bankroll += bet + gain
+                self.session["blackjacks"] += 1
             elif total > 21:
-                hand["result"] = "bust"; net -= bet
+                hand["result"], gain = "bust", -bet
+                self.session["busts"] += 1
             elif dealer_nat:
-                hand["result"] = "lose"; net -= bet
+                hand["result"], gain = "lose", -bet
             elif dealer_total > 21 or total > dealer_total:
-                hand["result"] = "win"; self.bankroll += bet * 2; net += bet
+                hand["result"], gain = "win", bet
+                self.bankroll += bet * 2
             elif total < dealer_total:
-                hand["result"] = "lose"; net -= bet
+                hand["result"], gain = "lose", -bet
             else:
-                hand["result"] = "push"; self.bankroll += bet
+                hand["result"], gain = "push", 0.0
+                self.bankroll += bet
+            hand["net"] = gain
+            net += gain
+            self.session["hands"] += 1
+            if gain > 0:
+                self.session["wins"] += 1
+            elif gain < 0:
+                self.session["losses"] += 1
+            else:
+                self.session["pushes"] += 1
+
+        if self.took_insurance:
+            wagered += self.bet / 2
+            net += self.bet * (0.5 if dealer_nat else -0.5)
+
         self.phase = "settled"
-        self.round_result = {"net": net,
-                             "outcome": "win" if net > 0 else "lose" if net < 0 else "push"}
+        self.session["wagered"] += wagered
+        self.session["net"] += net
+        self.session["peak"] = max(self.session["peak"], self.bankroll)
+        self.session["trough"] = min(self.session["trough"], self.bankroll)
+        if net > 0:
+            self.session["streak"] = max(0, self.session["streak"]) + 1
+        elif net < 0:
+            self.session["streak"] = min(0, self.session["streak"]) - 1
+        else:
+            self.session["streak"] = 0
+        self.session["best_streak"] = max(self.session["best_streak"], self.session["streak"])
+
+        self.round_result = {
+            "net": net, "wagered": wagered,
+            "outcome": "win" if net > 0 else "lose" if net < 0 else "push",
+            "broke": self.broke(),
+        }
         return self.round_result
 
     # ---------------- bet sizing ----------------
@@ -333,22 +521,22 @@ class Table:
         if last_outcome == "lose" and last_bet and amount > last_bet and tc < 2:
             flags.append({"key": "chase", "level": "bad", "text":
                 "You raised your bet after losing, and the cards don't back it up. "
-                "That's a chasing pattern. It doesn't change your odds at all \u2014 it just "
+                "That's a chasing pattern. It doesn't change your odds at all — it just "
                 "puts more money at risk in fewer hands, so you go broke faster."})
         if last_outcome == "win" and last_bet and amount > last_bet * 2 and tc < 2:
             flags.append({"key": "press", "level": "warn", "text":
-                "You doubled up after a win. Each hand is dealt from a fresh position \u2014 "
+                "You doubled up after a win. Each hand is dealt from a fresh position — "
                 "the last result tells you nothing about the next one."})
         if amount > table_min:
             if share > 0.15:
                 flags.append({"key": "over", "level": "bad", "text":
-                    "This bet is %d%% of everything you have, and you weren't forced into it \u2014 "
+                    "This bet is %d%% of everything you have, and you weren't forced into it — "
                     "the minimum here is $%d. A normal run of bad luck wipes you out at this size."
                     % (round(share * 100), table_min)})
             elif share > 0.05:
                 flags.append({"key": "big", "level": "warn", "text":
                     "This bet is %d%% of your money. For a game that swings this much, "
-                    "1\u20132%% per hand is the usual guidance." % round(share * 100)})
+                    "1–2%% per hand is the usual guidance." % round(share * 100)})
         if table_min / bankroll > 0.15:
             flags.append({"key": "undercap", "level": "warn", "text":
                 "The smallest bet allowed here is %d%% of your money. This table is too "
@@ -357,8 +545,8 @@ class Table:
         if tc >= 2 and amount <= table_min:
             flags.append({"key": "watch", "level": "info", "text":
                 "The count is +%.1f, which is the rare moment the odds tip your way, and "
-                "you're betting the minimum. Not a mistake \u2014 flat betting is right unless "
-                "you're genuinely tracking the cards \u2014 but this is the only time betting "
+                "you're betting the minimum. Not a mistake — flat betting is right unless "
+                "you're genuinely tracking the cards — but this is the only time betting "
                 "more has real maths behind it." % tc})
 
         # betting the minimum is never an error: you can't bet less than the minimum
@@ -378,15 +566,21 @@ class Table:
             total, soft = E.hand_value(h["cards"])
             hero.append({
                 "cards": h["cards"], "total": total, "soft": soft, "bet": h["bet"],
-                "doubled": h["doubled"], "result": h["result"],
+                "doubled": h["doubled"], "result": h["result"], "net": h["net"],
+                "from_split": h["from_split"], "split_ace": h["split_ace"],
                 "active": (self.phase == "play" and i == self.active),
+                "pending": len(h["cards"]) == 1,
                 "bust": total > 21,
             })
         dealer_total, _ = E.hand_value(self.dealer)
+        active_hand = self.hands[self.active] if (
+            self.phase == "play" and self.active < len(self.hands)) else None
         return {
             "phase": self.phase,
             "bankroll": round(self.bankroll, 2),
             "bet": self.bet,
+            "broke": self.broke(),
+            "even_money": self.even_money,
             "dealer": {
                 "cards": self.dealer,
                 "hole_hidden": self.hole_hidden,
@@ -395,17 +589,19 @@ class Table:
                 "bust": (not self.hole_hidden) and dealer_total > 21,
             },
             "hands": hero,
+            "active": self.active,
             "seats": [{"cards": s["cards"], "total": E.hand_value(s["cards"])[0],
                        "bust": E.hand_value(s["cards"])[0] > 21} for s in self.seats],
-            "can_double": self.can_double(self.hands[self.active])
-                          if self.phase == "play" and self.active < len(self.hands) else False,
-            "can_split": self.can_split(self.hands[self.active])
-                         if self.phase == "play" and self.active < len(self.hands) else False,
+            "can_hit": self.can_hit(active_hand) if active_hand else False,
+            "can_double": self.can_double(active_hand) if active_hand else False,
+            "can_split": self.can_split(active_hand) if active_hand else False,
             "running_count": self.running_count,
             "true_count": round(self.true_count(), 2),
             "shoe_used": round(self.dealt / (self.config["decks"] * 52), 3),
             "cards_left": len(self.shoe),
             "config": self.config,
+            "rules": self.rules,
+            "session": dict(self.session, bankroll=round(self.bankroll, 2)),
             "verdict": self.verdict,
             "analysis": self.last_analysis,
             "bet_check": self.last_bet_check,

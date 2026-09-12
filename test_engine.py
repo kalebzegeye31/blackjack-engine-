@@ -27,30 +27,48 @@ print("  split 8,8 v 10        %+.4f   beats hitting (%+.4f): %s"
 checks.append(o10.ev_split(8) > o10.ev_hit(16,False))
 
 print("\nevery chart cell vs the maths on a full shoe:")
-UP=[2,3,4,5,6,7,8,9,10,11]
-def mk(rs): return [{"rank":r,"suit":"\u2660","red":False} for r in rs]
-cases=[]
-for k,row in E.HARD.items():
-    t = 8 if k==8 else 15 if k==16 else 18 if k==21 else k
-    cases.append((mk([str(t-2),"2"]) if t<=11 else mk(["10",str(t-10)]), row, "hard %d"%t))
-for k,row in E.SOFT.items():
-    cases.append((mk(["A",{"2-3":"2","4-5":"4","6":"6","7":"7","8+":"8"}[k]]), row, "soft "+k))
-for k,row in E.PAIRS.items():
-    r = "A" if k==11 else str(k)
-    cases.append((mk([r,r]), row, "pair "+r))
-bad=[]
-for cards,row,name in cases:
-    for i,u in enumerate(UP):
-        o=E.Odds(full,u); t,s=E.hand_value(cards)
-        opts={"S":o.ev_stand(t),"H":o.ev_hit(t,s),"D":o.ev_double(t,s)}
-        if E.card_value(cards[0]["rank"])==E.card_value(cards[1]["rank"]):
-            opts["P"]=o.ev_split(E.card_value(cards[0]["rank"]))
-        best=max(opts,key=opts.get)
-        if best!=row[i]:
-            bad.append("%s v%s chart=%s maths=%s gap=%.4f"%(name,"A" if u==11 else u,row[i],best,opts[best]-opts[row[i]]))
+import rules as R
+def mk(rs): return [{"rank": r, "suit": "\u2660", "red": False} for r in rs]
+bad = []
+for section, row, up, code in R.cells_for(R.DEFAULT_RULES):
+    if section == "hard" and row >= 17:
+        continue                      # nothing to decide, and 21 needs three cards
+    cards = mk(R.cards_for_cell(section, row))
+    o = E.Odds(full, up)
+    t, s = E.hand_value(cards)
+    opts = {"S": o.ev_stand(t), "H": o.ev_hit(t, s), "D": o.ev_double(t, s)}
+    if section == "pair":
+        opts["P"] = o.ev_split(11 if row == 11 else row)
+    best = max(opts, key=opts.get)
+    want = "D" if code == "Ds" else code
+    if best != want:
+        bad.append("%s v%s chart=%s maths=%s gap=%.4f"
+                   % (R.cell_name(section, row, up).split(" vs ")[0], R.up_label(up),
+                      want, best, opts[best] - opts[want]))
+print("  cells checked:", len([c for c in R.cells_for(R.DEFAULT_RULES)
+                               if not (c[0] == "hard" and c[1] >= 17)]))
 print("  disagreements:", len(bad))
 for b in bad: print("   ", b)
 checks.append(len(bad) <= 2)
+
+print("\nthe chart varies with the rules, and only where it should:")
+for name, rset in [("hits soft 17", {"hit_soft_17": True, "das": True}),
+                   ("no double after split", {"hit_soft_17": False, "das": False})]:
+    base = R.grid(R.DEFAULT_RULES)
+    other = R.grid(rset)
+    diffs = [(sec, row, R.up_label(up))
+             for sec in ("hard", "soft", "pair") for row in base[sec]
+             for up in R.UPCARDS
+             if base[sec][row][R.up_index(up)] != other[sec][row][R.up_index(up)]]
+    print("  %-22s %d cells differ: %s" % (name, len(diffs),
+          ", ".join("%s %s v%s" % d for d in diffs)))
+    checks.append(0 < len(diffs) <= 8)
+
+print("\ncell names round-trip:")
+broken = [R.cell_name(s, r, u) for s, r, u, _ in R.cells_for(R.DEFAULT_RULES)
+          if R.parse_cell(R.cell_name(s, r, u)) != (s, r, u)]
+print("  names that do not parse back:", len(broken), broken[:3])
+checks.append(not broken)
 
 print("\ncount sensitivity (strip half the low cards -> ten-rich shoe):")
 # remove half the low cards by position -- card dicts compare equal, so

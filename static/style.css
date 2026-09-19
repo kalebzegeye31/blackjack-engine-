@@ -54,8 +54,9 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 .arc{position:absolute;left:-18%;width:136%;height:190%;top:34%;pointer-events:none;
   border:1.5px solid rgba(201,169,97,.22);border-radius:50%}
 .arc.two{top:41%;border-color:rgba(201,169,97,.12)}
-.felt-text{position:absolute;left:0;right:0;top:44%;text-align:center;pointer-events:none;
-  color:rgba(201,169,97,.3);font-family:var(--serif);letter-spacing:.22em;font-size:11px}
+.felt-text{position:relative;z-index:1;text-align:center;pointer-events:none;
+  margin:2px 0 8px;color:rgba(201,169,97,.3);font-family:var(--serif);
+  letter-spacing:.22em;font-size:11px}
 .felt-text small{display:block;letter-spacing:.1em;font-size:8.5px;margin-top:3px;
   color:rgba(201,169,97,.2);font-family:var(--sans)}
 
@@ -474,3 +475,7 @@ table.chart td.k3{box-shadow:inset 0 0 0 2px var(--good)}
 .shoebar .tlab{font-size:8px;letter-spacing:.1em;opacity:.45;margin-right:3px}
 .shoebar .tnum{margin-left:7px;opacity:.6}
 .shoebar .cask.thin{margin-left:9px;font-weight:400;opacity:.8}
+/* your hand total, withheld while you are still playing it */
+.total.hid{background:rgba(0,0,0,.18);color:rgba(223,231,227,.25);font-weight:400;
+  letter-spacing:.1em;min-width:34px}
+.total.hid em{color:#f0a99e;margin-left:0}

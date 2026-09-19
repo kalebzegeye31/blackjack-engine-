@@ -72,6 +72,7 @@ class Table:
             # by eye and do the division in your head.
             "show_decks_left": False,
             "show_true_count": False,
+            "show_totals": False,    # add your own cards up, like everyone else
         }
         if config:
             self.config.update({k: v for k, v in config.items() if k in self.config})
@@ -106,6 +107,7 @@ class Table:
         self.config["spread"] = max(1, min(20, int(self.config.get("spread", 8))))
         self.config["show_decks_left"] = bool(self.config.get("show_decks_left", False))
         self.config["show_true_count"] = bool(self.config.get("show_true_count", False))
+        self.config["show_totals"] = bool(self.config.get("show_totals", False))
         self.rules = R.normalise(self.config)
 
     # ---------------- shoe ----------------

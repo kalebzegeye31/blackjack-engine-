@@ -606,7 +606,7 @@ class Handler(BaseHTTPRequestHandler):
         for key in ("decks", "others", "table_min", "table_max", "penetration",
                     "hit_soft_17", "das", "resplit_aces", "max_hands", "blackjack_pays",
                     "random_checks", "check_rate", "spread",
-                    "show_decks_left", "show_true_count"):
+                    "show_decks_left", "show_true_count", "show_totals"):
             if key in data:
                 cfg[key] = data[key]
         clean = dict(Table(config=cfg).config)     # one place decides what is legal

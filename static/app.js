@@ -403,15 +403,29 @@ function ixName(ix) {
   return "Hard " + ix.total + " against a " + upLabel(ix.up);
 }
 
+/* Your own total, or not.
+
+   Nobody adds your cards up for you at a table, and being handed the number is
+   the difference between reading a hand and being told one. It comes back once
+   the round is settled, because by then the hand is over and the total is
+   feedback rather than help. Busting still shows immediately — you would know
+   that instantly, from the dealer taking your chips. */
+function heroTotal(x) {
+  const show = S.config.show_totals || S.phase === "settled";
+  if (!show) {
+    return '<span class="total hid">' +
+      (x.bust ? "<em>BUST</em>" : "&nbsp;·&nbsp;") + "</span>";
+  }
+  return '<span class="total' + (x.bust ? " bust" : "") + '">' + x.total +
+    (x.soft && x.total < 21 ? "<em>SOFT</em>" : "") +
+    (x.bust ? "<em>BUST</em>" : "") + "</span>";
+}
+
 function drawTable() {
   const d = S.dealer;
   let h =
     '<div class="rail"><div class="felt">' +
     '<div class="arc"></div><div class="arc two"></div>' +
-    '<div class="felt-text">BLACKJACK PAYS ' + (S.rules.blackjack_pays === 1.5 ? "3 TO 2" : "6 TO 5") +
-    "<small>DEALER MUST DRAW TO 16 AND " +
-    (S.rules.hit_soft_17 ? "HIT SOFT 17" : "STAND ON ALL 17s") +
-    " · INSURANCE PAYS 2 TO 1</small></div>" +
     '<div class="shoebar">' + countBar() + trayBar() + "</div>";
 
   /* dealer */
@@ -422,6 +436,14 @@ function drawTable() {
       ? '<div class="total' + (d.bust ? " bust" : "") + '">' +
         (d.hole_hidden ? upLabel(d.showing) + "<em>SHOWING</em>" : d.total + (d.bust ? "<em>BUST</em>" : "")) + "</div>"
       : "") + "</div>";
+
+  /* The rules printed on the felt. In the flow rather than floated over it —
+     absolutely positioned, it landed on top of the other players' cards. */
+  h += '<div class="felt-text">BLACKJACK PAYS ' +
+    (S.rules.blackjack_pays === 1.5 ? "3 TO 2" : "6 TO 5") +
+    "<small>DEALER MUST DRAW TO 16 AND " +
+    (S.rules.hit_soft_17 ? "HIT SOFT 17" : "STAND ON ALL 17s") +
+    " · INSURANCE PAYS 2 TO 1</small></div>";
 
   /* other seats, nudged into an arc */
   if (S.seats.length) {
@@ -452,8 +474,7 @@ function drawTable() {
         '<div style="text-align:center">' +
         (waiting
           ? '<span class="total pend">waiting<em>DEALT WHEN ITS TURN COMES</em></span>'
-          : '<span class="total' + (x.bust ? " bust" : "") + '">' + x.total +
-            (x.soft && x.total < 21 ? "<em>SOFT</em>" : "") + (x.bust ? "<em>BUST</em>" : "") + "</span>") +
+          : heroTotal(x)) +
         "</div></div>";
     }).join("");
   } else {
@@ -1800,6 +1821,10 @@ function viewSetup() {
     sel("s_stc", c.show_true_count ? 1 : 0, [
       [0, "I'll do the division myself"],
       [1, "Work it out for me"]]) + "</div>" +
+    '<div class="field"><label>YOUR HAND TOTAL</label>' +
+    sel("s_stot", c.show_totals ? 1 : 0, [
+      [0, "I'll add my own cards up"],
+      [1, "Show it while I play"]]) + "</div>" +
     '<div class="field"><label>COUNT CHECKS</label>' +
     sel("s_rc", c.random_checks ? 1 : 0, [
       [1, "Interrupt me now and then"],
@@ -1845,6 +1870,7 @@ async function saveSetup() {
     blackjack_pays: +$("s_bj").value, hit_soft_17: !!+$("s_h17").value,
     das: !!+$("s_das").value, resplit_aces: !!+$("s_ra").value, max_hands: +$("s_mh").value,
     show_decks_left: !!+$("s_sdl").value, show_true_count: !!+$("s_stc").value,
+    show_totals: !!+$("s_stot").value,
     random_checks: !!+$("s_rc").value, check_rate: +$("s_cr").value,
     spread: +$("s_spread").value,
   });

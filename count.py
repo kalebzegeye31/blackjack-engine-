@@ -181,26 +181,37 @@ BY_KEY = {p["key"]: p for p in _I18}
 ILLUSTRIOUS_18 = sorted(_I18, key=lambda p: p["rank"])
 
 
-def lookup(hand_kind, total, pair, up, can_split=False):
+def lookup(hand_kind, total, pair, up, can_split=False, chart_move=None):
     """
     The index play for this situation, or None if the count never changes it.
 
     `hand_kind` is what rules/engine decided the hand is: "hard", "soft" or
     "pair". Soft hands have no index plays in this set.
 
-    A pair of 5s is a hard 10 for our purposes, and a pair of tens you are not
-    allowed to split is a plain twenty, so the pair entries only apply when a
-    split is actually on the table.
+    `chart_move` is what decides it for pairs, and getting this wrong is not
+    cosmetic. A hand you are going to split is not a hard total: a pair of 8s
+    is never played as a 16, so the 16 v 10 index does not belong to it — that
+    index is for a hard 16 you cannot break up. Without this the app told a
+    player to hit 8,8 against a ten, which no count ever justifies.
+
+    A pair of 5s is the opposite case. The chart never splits it, so it really
+    is a hard 10 and the hard 10 indices apply to it properly. Same for a pair
+    you are not allowed to split, which arrives here as a hard total anyway.
     """
-    if hand_kind == "pair" and pair == 10 and can_split:
-        for p in _I18:
-            if p["kind"] == "pair" and p["pair"] == 10 and p["up"] == up:
-                return p
-        return None
+    if hand_kind == "pair" and can_split:
+        if pair == 10:
+            # tens are their own index: whether a count is high enough to break
+            # a twenty, which is the reverse question from the hard totals
+            for p in _I18:
+                if p["kind"] == "pair" and p["pair"] == 10 and p["up"] == up:
+                    return p
+            return None
+        if chart_move == "P":
+            return None
     if hand_kind == "soft":
         return None
-    # everything else is judged on the total, which covers pairs played as hard
-    # totals (5,5 is a ten) and hands that grew past two cards
+    # everything else is judged on the total, which covers pairs the chart plays
+    # as a hard total (5,5 is a ten) and hands that grew past two cards
     for p in _I18:
         if p["kind"] == "hard" and p["total"] == total and p["up"] == up:
             return p
@@ -226,7 +237,7 @@ def correct_move(chart_move, hand_kind, total, pair, up, tc, can_split=False,
     cannot afford to double — the chart move stands, because an index play you
     cannot make is not a play.
     """
-    entry = lookup(hand_kind, total, pair, up, can_split)
+    entry = lookup(hand_kind, total, pair, up, can_split, chart_move)
     if entry is None:
         return chart_move, None, False
 

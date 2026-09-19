@@ -254,6 +254,61 @@ def test_indices_against_the_engine(shoes=1200, tolerance=1.0):
           all(abs(p["crossing"] - p["index"]) <= 1.0 for p in C.ILLUSTRIOUS_18))
 
 
+
+def test_a_pair_is_not_its_total():
+    """
+    A hand you are going to split is not a hard total.
+
+    This shipped broken: lookup() fell through to the hard-total indices for any
+    pair that was not tens, so a pair of 8s matched 16 v 10 and the app told a
+    player to hit 8,8 against a ten at a true count of -0.9. Nothing ever
+    justifies that. A pair of 6s had the same fault against the whole 12 row.
+
+    A pair of 5s is the case that has to keep working: the chart never splits
+    it, so it really is a hard 10 and the hard 10 indices belong to it.
+    """
+    print("\na pair is not its total")
+    rules = R.normalise({})
+
+    for pair, total, label in ((8, 16, "8,8"), (6, 12, "6,6")):
+        wrong = []
+        for up in R.UPCARDS:
+            code = R.chart_move(rules, "pair", pair, up)
+            chart = R.resolve(code, True)[0]
+            if chart != "P":
+                continue                     # not a split cell; the total governs
+            for tc in (-8, -5, -3, -1, 0, 1, 3, 5, 8, 12):
+                mv, entry, dev = C.correct_move(chart, "pair", total, pair, up, tc,
+                                                can_split=True, can_double=True)
+                if mv != "P" or entry is not None:
+                    wrong.append((up, tc, mv, entry["key"] if entry else None))
+        check("%s is split at every count the chart splits it" % label,
+              not wrong, str(wrong[:3]))
+
+    # the reported hand, exactly
+    mv, entry, dev = C.correct_move("P", "pair", 16, 8, 10, -0.9,
+                                    can_split=True, can_double=True)
+    check("8,8 v 10 at true count -0.9 splits", mv == "P" and entry is None and not dev)
+
+    # ...but an 8,8 you are not allowed to split arrives as a hard 16 and keeps
+    # its index, which is the whole reason the hard lookup exists
+    mv, entry, dev = C.correct_move("H", "hard", 16, None, 10, 1.0)
+    check("a hard 16 v 10 you cannot split still stands at +1",
+          mv == "S" and entry is not None and dev)
+
+    # 5,5 is never split, so it really is a hard 10
+    mv, entry, dev = C.correct_move("H", "pair", 10, 5, 10, 5.0,
+                                    can_split=True, can_double=True)
+    check("5,5 v 10 still doubles at +5, as a hard ten",
+          mv == "D" and entry is not None and entry["key"] == "h10v10")
+
+    # and tens keep their own index rather than borrowing hard 20's (there isn't one)
+    mv, entry, dev = C.correct_move("S", "pair", 20, 10, 5, 5.0,
+                                    can_split=True, can_double=True)
+    check("T,T v 5 splits at +5 on its own index",
+          mv == "P" and entry is not None and entry["key"] == "pTTv5")
+
+
 def test_verdict_is_count_aware():
     """
     The headline a player reads has to be graded on the count.
@@ -335,6 +390,7 @@ if __name__ == "__main__":
     test_ramp()
     test_deck_estimates()
     test_grading()
+    test_a_pair_is_not_its_total()
     test_verdict_is_count_aware()
     test_indices_against_the_engine()
     print("\n%d passed, %d failed" % (len(PASS), len(FAIL)))

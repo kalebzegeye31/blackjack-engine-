@@ -115,6 +115,68 @@ obvious hands right and losing the same few awkward ones over and over.
 The Analysis tab turns that into money: how often you miss each square, times what
 that miss costs, times how often the hand turns up, times 80 hands an hour.
 
+## Counting
+
+The count is **hidden**. That is the point of it: a number sitting on screen is
+not a count you can keep, and no casino prints one for you.
+
+Press **REVEAL COUNT** and it does not simply tell you — it asks you first. You
+type what you think the running count is, it marks you, and only then shows the
+truth. Peeking always costs a graded answer, so the button can never quietly
+become a readout you lean on. Revealing lasts one round; the next deal hides it
+again.
+
+It also interrupts. Every so often, unasked and usually at a bad moment, the bar
+demands the count whether you wanted to check or not. A player who only tests
+themselves when they feel confident is grading their best moments, which is how
+you end up at a real table discovering you lost the count twenty hands ago.
+
+Answers are marked exactly. Close is still wrong: an error in the running count
+does not average out, it rides with you to the shuffle and skews every true
+count you derive from it.
+
+### The index plays
+
+Play is graded twice, against two different things, because they are two
+different skills:
+
+- **basic strategy** — what the chart says, ignoring the count
+- **the index plays** — the hands where a big count changes the answer
+
+The second is the Illustrious 18: the eighteen departures from the chart that
+carry nearly all of the value, insurance at +3 being far and away the largest.
+Get one wrong and the count breaks cover — the app stops, tells you the index,
+what the true count actually was, and why that hand moves. Get it right and it
+stays quiet, because being told the count when you already knew it teaches you
+nothing.
+
+Surrender indices (the Fab 4) are absent, because this game has no surrender.
+
+### Where the index numbers came from
+
+They are not copied out of a book on trust. Every one was re-derived from this
+repository's own engine: six thousand shoes dealt card by card, the composition
+of what remained recorded at each point the true count sat near an integer,
+those compositions averaged per count and handed to `engine.Odds` to find the
+exact true count at which each decision flips.
+
+Sixteen of the eighteen landed on the published value. Two — 12 v 3 and 11 v A —
+came out half a point away, which is to say the expected value either side is
+near enough identical that the rounding could fall either way. The published
+value is used for both, and the derived crossing is stored next to every index
+and shown in the app, so it argues its case rather than asserting a number.
+
+`python3 test_count.py` re-derives all eighteen from scratch and fails if the
+table has drifted from the maths, and separately checks that every index still
+agrees with basic strategy on one of its two sides.
+
+### Betting
+
+Playing the indices perfectly and betting flat earns almost nothing. The spread
+is where a counter's money comes from, and it is also the thing a pit notices
+first. The Betting tab grades your bet against the ramp in bands rather than
+exactly, because a trainer that nags about one unit teaches you to ignore it.
+
 ## The explanations
 
 `coach.py` holds one hand-written passage for every square of the chart — 340 of
@@ -143,6 +205,7 @@ game.py      One table for one session: shoe, seats, whose turn, the money.
 sim.py       A second, stripped table that deals 200,000 hands a second.
 mastery.py   How well you actually know the chart.
 quiz.py      Questions, drawn from wherever your record is worst.
+count.py     Hi-Lo: the count, the Illustrious 18, and the bet ramp.
 coach.py     The words. One written passage per square of the chart, plus the glossary.
 db.py        SQLite storage: accounts, sessions, decisions, the chip ledger.
 static/      The browser side: one HTML file, one CSS file, one JS file.

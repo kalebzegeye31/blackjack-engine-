@@ -20,7 +20,7 @@ from contextlib import contextmanager
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "blackjack.db")
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS accounts (
@@ -128,6 +128,21 @@ CREATE TABLE IF NOT EXISTS quizzes (
     FOREIGN KEY (account_id) REFERENCES accounts(id)
 );
 
+CREATE TABLE IF NOT EXISTS count_checks (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id    INTEGER NOT NULL,
+    session_id    INTEGER,
+    at            REAL NOT NULL,
+    reason        TEXT NOT NULL DEFAULT 'asked',  -- 'asked' or 'interrupted'
+    said          INTEGER,                        -- null if the answer was nonsense
+    actual        INTEGER NOT NULL,
+    off           INTEGER,                        -- said - actual, signed
+    ok            INTEGER NOT NULL,
+    true_count    REAL NOT NULL DEFAULT 0,
+    decks_left    REAL NOT NULL DEFAULT 0,
+    FOREIGN KEY (account_id) REFERENCES accounts(id)
+);
+
 """
 
 INDEXES = """
@@ -138,6 +153,8 @@ CREATE INDEX IF NOT EXISTS idx_rnd_acct ON rounds(account_id);
 CREATE INDEX IF NOT EXISTS idx_ses_acct ON sessions(account_id);
 CREATE INDEX IF NOT EXISTS idx_led_acct ON ledger(account_id);
 CREATE INDEX IF NOT EXISTS idx_qz_acct  ON quizzes(account_id);
+CREATE INDEX IF NOT EXISTS idx_cc_acct  ON count_checks(account_id);
+CREATE INDEX IF NOT EXISTS idx_dec_idx  ON decisions(index_key);
 """
 
 
@@ -214,6 +231,8 @@ def init():
             ("decisions", "session_id", "INTEGER"),
             ("decisions", "should", "TEXT"),
             ("decisions", "source", "TEXT NOT NULL DEFAULT 'play'"),
+            ("decisions", "index_key", "TEXT"),
+            ("decisions", "count_correct", "INTEGER"),
             ("bets", "session_id", "INTEGER"),
             ("rounds", "session_id", "INTEGER"),
         ):
@@ -469,13 +488,66 @@ def sessions(account_id, limit=60):
 # ---------------- logging ----------------
 
 def log_decision(account_id, session_id, cell, chose, should, correct, ev_correct,
-                 cost, true_count, source="play"):
+                 cost, true_count, source="play", index_key=None, count_correct=None):
+    """
+    Write down one decision.
+
+    `correct` is against basic strategy and `count_correct` against the index
+    plays. They are stored separately because they are separate skills: a player
+    can be flawless on the chart and lose money by never deviating, and the one
+    number would hide it.
+    """
     with connect() as conn:
         conn.execute(
             "INSERT INTO decisions (account_id, session_id, at, cell, chose, should, "
-            "correct, ev_correct, cost, true_count, source) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            "correct, ev_correct, cost, true_count, source, index_key, count_correct) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (account_id, session_id, time.time(), cell, chose, should, int(correct),
-             int(ev_correct), float(cost), float(true_count), source))
+             int(ev_correct), float(cost), float(true_count), source, index_key,
+             None if count_correct is None else int(count_correct)))
+
+
+def log_count_check(account_id, session_id, result):
+    """Record an answer to 'what is the running count?'."""
+    with connect() as conn:
+        conn.execute(
+            "INSERT INTO count_checks (account_id, session_id, at, reason, said, "
+            "actual, off, ok, true_count, decks_left) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (account_id, session_id, time.time(), result.get("reason", "asked"),
+             result.get("said"), int(result["actual"]), result.get("off"),
+             int(bool(result["ok"])), float(result.get("true_count") or 0),
+             float(result.get("decks_left") or 0)))
+
+
+def count_record(account_id):
+    """How reliably this account keeps a running count, all time."""
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) n, SUM(ok) ok, AVG(ABS(off)) drift, MAX(ABS(off)) worst "
+            "FROM count_checks WHERE account_id=?", (account_id,)).fetchone()
+        unasked = conn.execute(
+            "SELECT COUNT(*) n, SUM(ok) ok FROM count_checks "
+            "WHERE account_id=? AND reason='interrupted'", (account_id,)).fetchone()
+    n = row["n"] or 0
+    return {
+        "asked": n,
+        "right": row["ok"] or 0,
+        "accuracy": round(100.0 * (row["ok"] or 0) / n) if n else None,
+        "avg_drift": round(row["drift"], 2) if row["drift"] is not None else None,
+        "worst_drift": row["worst"] or 0,
+        "interrupted": unasked["n"] or 0,
+        "interrupted_right": unasked["ok"] or 0,
+    }
+
+
+def index_record(account_id):
+    """Per-index-play record: the hands where the count changes the answer."""
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT index_key, COUNT(*) n, SUM(count_correct) ok FROM decisions "
+            "WHERE account_id=? AND index_key IS NOT NULL GROUP BY index_key",
+            (account_id,)).fetchall()
+    return {r["index_key"]: {"seen": r["n"], "right": r["ok"] or 0} for r in rows}
 
 
 def log_bet(account_id, session_id, check):

@@ -13,6 +13,7 @@ while already looking at hand two.
 
 import random
 
+import count as C
 import engine as E
 import rules as R
 
@@ -62,12 +63,25 @@ class Table:
             "resplit_aces": False,
             "max_hands": 4,
             "blackjack_pays": 1.5,
+            # counting
+            "random_checks": True,   # demand the count uninvited, now and then
+            "check_rate": 0.12,      # roughly one round in eight
+            "spread": 8,             # top bet in units, for grading the ramp
         }
         if config:
             self.config.update({k: v for k, v in config.items() if k in self.config})
         self.apply_rules()
         self.bankroll = float(bankroll)
         self.session = blank_session(self.bankroll)
+
+        # --- counting ---------------------------------------------------
+        # The count is hidden by default. That is the whole point: a number on
+        # screen that you can glance at is not a count you can keep, and at a
+        # real table nobody prints it for you.
+        self.count_visible = False
+        self.count_checks = []      # every time you were asked for it, and what you said
+        self.pending_check = None   # an unanswered demand for the count
+
         self.shuffle()
         self.reset_round()
 
@@ -80,6 +94,11 @@ class Table:
         self.config["table_max"] = max(self.config["table_min"],
                                        int(self.config.get("table_max", 500)))
         self.config["penetration"] = min(0.95, max(0.02, float(self.config["penetration"])))
+        # counting settings, clamped the same way as everything else: nothing
+        # reaching here is trusted, it all arrives over the network
+        self.config["random_checks"] = bool(self.config.get("random_checks", True))
+        self.config["check_rate"] = min(0.5, max(0.0, float(self.config.get("check_rate", 0.12))))
+        self.config["spread"] = max(1, min(20, int(self.config.get("spread", 8))))
         self.rules = R.normalise(self.config)
 
     # ---------------- shoe ----------------
@@ -105,6 +124,104 @@ class Table:
 
     def decks_left(self):
         return max(0.25, (self.config["decks"] * 52 - self.dealt) / 52.0)
+
+    # ---------------- the count, and keeping it to yourself ----------------
+    def ask_for_count(self, reason="asked"):
+        """Put up a demand for the running count. Returns the prompt."""
+        if self.pending_check is None:
+            self.pending_check = {
+                "reason": reason,
+                "decks_left": round(self.decks_left(), 2),
+                "cards_left": len(self.shoe),
+            }
+        return self.pending_check
+
+    def answer_count(self, said):
+        """
+        Mark an answer to a count check, then let the count be seen.
+
+        Answering is what buys you the number: right or wrong, you get told what
+        it actually is, because a check you cannot learn from is just a quiz.
+        """
+        actual = self.running_count
+        result = C.grade_count(said, actual)
+        result.update({
+            "reason": (self.pending_check or {}).get("reason", "asked"),
+            "true_count": round(self.true_count(), 2),
+            "decks_left": round(self.decks_left(), 2),
+            "at_hand": self.session.get("rounds", 0),
+        })
+        self.count_checks.append(result)
+        self.pending_check = None
+        self.count_visible = True
+        return result
+
+    def hide_count(self):
+        self.count_visible = False
+
+    def count_record(self):
+        """How the count-keeping is going this session."""
+        n = len(self.count_checks)
+        ok = sum(1 for c in self.count_checks if c["ok"])
+        drift = [abs(c["off"]) for c in self.count_checks if c.get("off") is not None]
+        return {
+            "asked": n,
+            "right": ok,
+            "accuracy": round(100.0 * ok / n) if n else None,
+            "worst_drift": max(drift) if drift else 0,
+            "last": self.count_checks[-1] if self.count_checks else None,
+        }
+
+    def maybe_interrupt(self):
+        """
+        Sometimes demand the count without being asked.
+
+        A player who only checks when they feel confident is grading themselves
+        on their best moments. The interruptions are what make the number mean
+        something, so they arrive uninvited and at a bad time, like a real one.
+        """
+        if not self.config.get("random_checks", True):
+            return None
+        if self.pending_check or self.count_visible:
+            return None
+        if self.dealt < 26:          # nothing to count yet
+            return None
+        if random.random() < float(self.config.get("check_rate", 0.12)):
+            return self.ask_for_count("interrupted")
+        return None
+
+    def _scrub(self, analysis):
+        """
+        Take the count back out of the feedback.
+
+        One exception, and it is the important one: if you have just misplayed an
+        index play, the count is exactly what you need to see. Getting it right
+        tells you nothing you did not already know; getting it wrong is the
+        lesson, so that is when the number comes out.
+        """
+        if analysis is None or self.count_visible:
+            return analysis
+        blew_it = (analysis.get("index") is not None
+                   and analysis.get("count_correct") is False)
+        if blew_it:
+            return analysis
+        out = dict(analysis)
+        for key in ("true_count", "running_count", "count_move", "count_correct",
+                    "count_ev", "index", "index_deviation", "index_cost"):
+            out.pop(key, None)
+        out["count_hidden"] = True
+        return out
+
+    def _scrub_bet(self, check):
+        """The suggested bet and the edge both give the count away."""
+        if check is None or self.count_visible:
+            return check
+        out = dict(check)
+        for key in ("true_count", "edge", "suggested", "ramp"):
+            out.pop(key, None)
+        out["count_hidden"] = True
+        out["flags"] = [f for f in out.get("flags", []) if f.get("key") != "watch"]
+        return out
 
     def true_count(self):
         return self.running_count / self.decks_left()
@@ -138,6 +255,10 @@ class Table:
             self.shuffle()
             self.session["shuffles"] += 1
         self.reset_round()
+        # Revealing lasts one round. Otherwise the first peek turns the button
+        # into a permanent readout and you stop counting altogether.
+        self.hide_count()
+        self.maybe_interrupt()
 
     def broke(self):
         """Can't make the smallest bet the table allows. The session is over."""
@@ -282,6 +403,16 @@ class Table:
         tie = sum(p for k, p in dist.items() if k != "bust" and int(k) == total)
 
         gap = (best["ev"] - chart_opt["ev"]) if chart_opt else 0.0
+
+        # What a counter should do here. Graded separately from basic strategy,
+        # because they are two different skills and collapsing them into one
+        # number hides which of the two you are actually failing at.
+        tc = self.true_count()
+        count_move, index_entry, index_dev = C.correct_move(
+            chart["move"], chart["kind"], total, chart.get("pair"), up, tc,
+            can_split=cs, can_double=cd)
+        count_opt = next((o for o in options if o["move"] == count_move and o["legal"]), None)
+
         return {
             "kind": "play",
             "row": chart["row"], "hand_kind": chart["kind"], "cell": chart["cell"],
@@ -289,6 +420,14 @@ class Table:
             "up": up, "chart_move": chart["move"], "chart_code": chart["code"],
             "fallback": chart["fallback"],
             "chosen": chosen, "correct": chosen == chart["move"],
+            # the counting layer
+            "count_move": count_move,
+            "count_correct": chosen == count_move,
+            "count_ev": count_opt["ev"] if count_opt else None,
+            "index_deviation": index_dev,
+            "index": (dict(index_entry, applies=True) if index_entry else None),
+            "index_cost": (max(0.0, count_opt["ev"] - mine["ev"])
+                           if (count_opt and mine) else 0.0),
             "options": [{"move": o["move"], "ev": o["ev"], "legal": o["legal"]} for o in options],
             "best_move": best["move"], "best_ev": best["ev"],
             "chart_ev": chart_opt["ev"] if chart_opt else None,
@@ -386,14 +525,25 @@ class Table:
         if take:
             self.bankroll -= self.bet / 2
             self.took_insurance = True
+        # Insurance is the most valuable index play there is, and the only one
+        # where basic strategy and a counter give opposite answers often enough
+        # to matter. Graded both ways: never take it if you are not counting,
+        # take it at +3 or better if you are.
+        tc = self.true_count()
+        should_take, entry = C.insurance_play(tc)
         self.last_analysis = {
             "kind": "insurance", "took": bool(take), "p_ten": p_ten, "ev": ev,
             "tens_left": odds.counts[10], "unseen": odds.total,
-            "correct": bool(take) == (ev > 0),
+            "correct": not take,                      # basic strategy: always decline
+            "count_move": "take" if should_take else "decline",
+            "count_correct": bool(take) == should_take,
+            "index_deviation": should_take,
+            "index": dict(entry, applies=True),
             "even_money": self.even_money,
-            "true_count": self.true_count(), "running_count": self.running_count,
+            "true_count": tc, "running_count": self.running_count,
         }
         self.verdict = {"kind": "insurance", "correct": not take,
+                        "count_correct": bool(take) == should_take,
                         "even_money": self.even_money,
                         "chosen": "take" if take else "decline"}
         self.session["decisions"] += 1
@@ -595,15 +745,19 @@ class Table:
             "can_hit": self.can_hit(active_hand) if active_hand else False,
             "can_double": self.can_double(active_hand) if active_hand else False,
             "can_split": self.can_split(active_hand) if active_hand else False,
-            "running_count": self.running_count,
-            "true_count": round(self.true_count(), 2),
+            "running_count": self.running_count if self.count_visible else None,
+            "true_count": round(self.true_count(), 2) if self.count_visible else None,
+            "count_hidden": not self.count_visible,
+            "count_check": self.pending_check,
+            "count_record": self.count_record(),
+            "decks_left": round(self.decks_left(), 2),
             "shoe_used": round(self.dealt / (self.config["decks"] * 52), 3),
             "cards_left": len(self.shoe),
             "config": self.config,
             "rules": self.rules,
             "session": dict(self.session, bankroll=round(self.bankroll, 2)),
             "verdict": self.verdict,
-            "analysis": self.last_analysis,
-            "bet_check": self.last_bet_check,
+            "analysis": self._scrub(self.last_analysis),
+            "bet_check": self._scrub_bet(self.last_bet_check),
             "round_result": self.round_result,
         }

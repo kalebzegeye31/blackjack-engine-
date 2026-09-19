@@ -435,3 +435,23 @@ table.chart td.k3{box-shadow:inset 0 0 0 2px var(--good)}
   background:var(--brass);color:#1a1305;padding:10px 18px;border-radius:8px;
   font-size:13.5px;font-weight:600;box-shadow:0 8px 26px rgba(0,0,0,.5);max-width:90vw;
   text-align:center}
+
+/* ---------------- counting ---------------- */
+/* The count lives in the shoe bar, but it is a control rather than a readout:
+   hidden until you ask, and asking costs you an answer. */
+.shoebar .cbtn{font:inherit;font-size:10px;letter-spacing:.09em;cursor:pointer;
+  background:rgba(201,169,97,.14);border:1px solid rgba(201,169,97,.4);
+  color:var(--brass);border-radius:3px;padding:3px 9px}
+.shoebar .cbtn:hover{background:rgba(201,169,97,.26)}
+.shoebar .cbtn.go{background:var(--brass);border-color:var(--brass);color:#1a1305;font-weight:600}
+.shoebar .cask{color:var(--warn);font-weight:600;margin-right:7px}
+.shoebar .cin{width:52px;font:inherit;font-size:11px;text-align:center;margin-right:5px;
+  background:rgba(0,0,0,.4);border:1px solid rgba(201,169,97,.45);color:var(--bone);
+  border-radius:3px;padding:3px 4px}
+.shoebar .cshow{color:var(--brass);font-weight:600}
+.shoebar .cmini{margin-left:8px;opacity:.65}
+
+/* a missed index play gets its own block under the verdict */
+.verdict.ixv{border-left-color:var(--warn)}
+.verdict.ixv h3{color:var(--warn)}
+.verdict.ixv .fine{opacity:.6;font-size:11px;margin-top:6px}

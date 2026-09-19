@@ -604,7 +604,8 @@ class Handler(BaseHTTPRequestHandler):
         acct = db.get_account(account_id)
         cfg = dict(acct["config"])
         for key in ("decks", "others", "table_min", "table_max", "penetration",
-                    "hit_soft_17", "das", "resplit_aces", "max_hands", "blackjack_pays"):
+                    "hit_soft_17", "das", "resplit_aces", "max_hands", "blackjack_pays",
+                    "random_checks", "check_rate", "spread"):
             if key in data:
                 cfg[key] = data[key]
         clean = dict(Table(config=cfg).config)     # one place decides what is legal
@@ -686,9 +687,47 @@ class Handler(BaseHTTPRequestHandler):
         # credit "matched the shoe" when the pick is within rounding noise of best
         ev_ok = bool(chosen and a["best_ev"] - chosen["ev"] <= 0.002)
         db.log_decision(account_id, live.session_id, a["cell"], move, a["chart_move"],
-                        a["correct"], ev_ok, a["cost"], a["true_count"])
+                        a["correct"], ev_ok, a["cost"], a["true_count"],
+                        index_key=(a["index"] or {}).get("key"),
+                        count_correct=a["count_correct"])
         extra = self.finish_round(account_id, live) if table.phase == "settled" else None
         return self.send_json(payload(account_id, extra))
+
+    # ---------- the count ----------
+    @route()
+    def post_count_ask(self, account_id, data):
+        """You pressed reveal. You get asked first."""
+        live = self._need_table(account_id)
+        if not live:
+            return
+        live.table.ask_for_count("asked")
+        return self.send_json(payload(account_id))
+
+    @route()
+    def post_count_answer(self, account_id, data):
+        """
+        Answer the outstanding demand for the running count.
+
+        Answering is the only way to see the number. Right or wrong you are told
+        what it actually was, and the answer goes on your record either way.
+        """
+        live = self._need_table(account_id)
+        if not live:
+            return
+        table = live.table
+        if not table.pending_check:
+            table.ask_for_count("asked")
+        result = table.answer_count(data.get("said"))
+        db.log_count_check(account_id, live.session_id, result)
+        return self.send_json(payload(account_id, {"count_result": result}))
+
+    @route()
+    def post_count_hide(self, account_id, data):
+        live = self._need_table(account_id)
+        if not live:
+            return
+        live.table.hide_count()
+        return self.send_json(payload(account_id))
 
     def finish_round(self, account_id, live):
         """A round settled: write it down. No more silent top-ups when you run dry."""

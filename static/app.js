@@ -286,9 +286,78 @@ const backEl = () => '<div class="card down pending"></div>';
 const miniEl = (c) =>
   '<div class="mc' + (c.red ? " red" : "") + '">' + (c.rank === "10" ? "T" : c.rank) + "</div>";
 
+/* ---------------- the count ----------------
+   Hidden by default. The button does not simply show it: it asks you for it
+   first, so peeking always costs you a graded answer and the readout can never
+   quietly become a substitute for counting. */
+function countBar() {
+  if (S.count_check) {
+    return '<span class="cask">' +
+      (S.count_check.reason === "interrupted" ? "COUNT CHECK · " : "") +
+      'RUNNING COUNT?</span>' +
+      '<input class="cin" id="cans" type="text" inputmode="numeric" autocomplete="off" ' +
+      'placeholder="+0" onkeydown="if(event.key===\'Enter\'){event.preventDefault();answerCount();}">' +
+      '<button class="cbtn go" onclick="answerCount()">Check</button>';
+  }
+  if (S.count_hidden) {
+    const rec = S.count_record || {};
+    return '<button class="cbtn" onclick="askCount()">REVEAL COUNT</button>' +
+      (rec.asked ? '<span class="cmini">' + rec.right + "/" + rec.asked + " right</span>" : "");
+  }
+  const rc = S.running_count, tc = S.true_count;
+  return '<span class="cshow">RUNNING ' + sgn(rc) + " · TRUE " +
+    (tc >= 0 ? "+" : "−") + Math.abs(tc).toFixed(1) + "</span>";
+}
+
+function sgn(n) { return (n >= 0 ? "+" : "−") + Math.abs(n); }
+
+async function askCount() { await send("/api/count/ask", {}); const f = $("cans"); if (f) f.focus(); }
+
+async function answerCount() {
+  const el = $("cans");
+  if (!el) return;
+  const said = el.value.trim();
+  const next = await send("/api/count/answer", { said: said });
+  const r = next && next.count_result;
+  if (r) toast(r.ok ? "Count right: running " + sgn(r.actual) : r.text);
+}
+
+/* The count only breaks cover for a missed index play. Getting one right tells
+   you nothing you did not already know; getting one wrong is the whole lesson,
+   so that is when the number comes out and says what it was. */
+function indexVerdict() {
+  const a = S.analysis;
+  if (!a || !a.index || a.count_correct !== false) return "";
+  const ix = a.index, tc = a.true_count;
+  const live = tc >= ix.index;
+  const want = ix.kind === "insurance"
+    ? (a.count_move === "take" ? "take insurance" : "decline insurance")
+    : MOVE[a.count_move];
+  return '<div class="verdict no ixv"><h3>Index play missed — ' + esc(want) + "</h3>" +
+    "<p><b>" + esc(ixName(ix)) + "</b> is one of the Illustrious 18. The index is <kbd>" +
+    ixNum(ix.index) + "</kbd>, and the true count was <kbd>" + ixNum(tc, 1) + "</kbd> — " +
+    (live ? "at or past it, so the deviation was on."
+          : "short of it, so basic strategy still applied.") + "</p>" +
+    "<p>" + esc(ix.why) + "</p>" +
+    '<p class="fine">This engine puts the actual crossing at ' + ixNum(ix.crossing, 2) +
+    ", which is where the published index of " + ixNum(ix.index) + " comes from.</p></div>";
+}
+
+/* A count of zero is "0", not "+0" — a sign on nothing reads like a typo. */
+function ixNum(n, places) {
+  const v = places ? Math.abs(n).toFixed(places) : Math.abs(n);
+  if (Number(v) === 0) return places ? v : "0";
+  return (n > 0 ? "+" : "−") + v;
+}
+
+function ixName(ix) {
+  if (ix.kind === "insurance") return "Insurance";
+  if (ix.kind === "pair") return "A pair of tens against a " + upLabel(ix.up);
+  return "Hard " + ix.total + " against a " + upLabel(ix.up);
+}
+
 function drawTable() {
   const d = S.dealer;
-  const tc = S.true_count;
   let h =
     '<div class="rail"><div class="felt">' +
     '<div class="arc"></div><div class="arc two"></div>' +
@@ -296,9 +365,9 @@ function drawTable() {
     "<small>DEALER MUST DRAW TO 16 AND " +
     (S.rules.hit_soft_17 ? "HIT SOFT 17" : "STAND ON ALL 17s") +
     " · INSURANCE PAYS 2 TO 1</small></div>" +
-    '<div class="shoebar"><span>COUNT ' + (S.running_count >= 0 ? "+" : "−") +
-    Math.abs(S.running_count) + " · PER DECK " + (tc >= 0 ? "+" : "−") +
-    Math.abs(tc).toFixed(1) + '</span><span>SHOE USED <span class="meter"><i style="width:' +
+    '<div class="shoebar">' + countBar() +
+    '<span>' + (S.decks_left != null ? S.decks_left + " DECKS LEFT · " : "") +
+    'SHOE USED <span class="meter"><i style="width:' +
     Math.round(S.shoe_used * 100) + '%"></i></span></span></div>';
 
   /* dealer */
@@ -370,6 +439,7 @@ function drawTable() {
         (v.fallback ? " The chart wants a double here, but you can only double on your first two cards." : "") +
         "</p></div>";
     }
+    h += indexVerdict();
   }
 
   /* controls */

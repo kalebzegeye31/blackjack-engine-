@@ -89,8 +89,10 @@ _I18 = [
 
     dict(key="h16v10", kind="hard", total=16, up=10, index=0, crossing=0.09, rank=2,
          at_or_above="S", below="H",
-         why="The most common hand in the game and the closest call on the chart. "
-             "Once the shoe is even slightly ten-rich, the extra chance of breaking "
+         why="One of the hands you face most often against a ten, and the closest "
+             "call on the whole chart — standing and hitting are within a thousandth "
+             "of a bet on a fresh shoe, which is why the smallest push tips it. Once "
+             "the shoe is even slightly ten-rich, the extra chance of breaking "
              "outweighs the extra chance of improving."),
 
     dict(key="h15v10", kind="hard", total=15, up=10, index=4, crossing=4.31, rank=3,
@@ -111,8 +113,11 @@ _I18 = [
 
     dict(key="h10v10", kind="hard", total=10, up=10, index=4, crossing=3.91, rank=6,
          at_or_above="D", below="H",
-         why="Doubling into a ten needs the shoe to be rich enough that you are "
-             "likely to catch a ten yourself and they are likely to break."),
+         why="The whole case is the card you are buying: a shoe rich enough that a "
+             "ten is likely, turning this into twenty. It is not that the dealer "
+             "starts breaking — from a ten they break slightly LESS as the count "
+             "climbs, because they are likelier to hold twenty outright than a stiff "
+             "hand they have to draw to."),
 
     dict(key="h12v3", kind="hard", total=12, up=3, index=2, crossing=1.41, rank=7,
          at_or_above="S", below="H",
@@ -168,8 +173,10 @@ _I18 = [
 
     dict(key="h12v6", kind="hard", total=12, up=6, index=-1, crossing=-1.34, rank=17,
          at_or_above="S", below="H",
-         why="The 6 is the dealer's worst card, so you stick with standing until "
-             "the shoe is clearly poor."),
+         why="You hold on to standing well below zero here, because a 6 is the card "
+             "the dealer breaks from most. Note it gives up marginally sooner than "
+             "the 5 does, not later, which looks the wrong way round — the two are "
+             "close enough that this is simply where the numbers fall."),
 
     dict(key="h13v3", kind="hard", total=13, up=3, index=-2, crossing=-2.44, rank=18,
          at_or_above="S", below="H",

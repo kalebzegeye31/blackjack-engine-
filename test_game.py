@@ -284,6 +284,37 @@ check("and nothing is flagged on the standard table",
 # one of them, the chart would be drawing a lie and this fails.
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Quiz questions are built from cards_for_cell, so if the cards do not add up to
+# the row they belong to, the quiz shows one hand and grades another. Hard 20
+# shipped as 9+J, which is a nineteen.
+# ---------------------------------------------------------------------------
+
+print("\nthe cards a quiz question is built from really make that hand")
+wrong = []
+for section in ("hard", "soft", "pair"):
+    rows = sorted({r for s, r, u, c in R.cells_for(R.DEFAULT_RULES) if s == section})
+    for row in rows:
+        ranks = R.cards_for_cell(section, row)
+        cards = [{"rank": r} for r in ranks]
+        total, soft = E.hand_value(cards)
+        if section == "hard":
+            ok = total == row and not soft
+        elif section == "soft":
+            ok = total == row + 11 and soft
+        else:
+            ok = (len(cards) == 2
+                  and E.card_value(ranks[0]) == E.card_value(ranks[1]) == row)
+        if not ok:
+            wrong.append("%s %s -> %s = %d%s" % (section, row, "+".join(ranks), total,
+                                                 " soft" if soft else ""))
+check("every cell's cards add up to that cell", not wrong, "; ".join(wrong))
+check("a hard row is never dealt as a pair, which would be a split question",
+      all(len(set(R.cards_for_cell("hard", r))) > 1 or len(R.cards_for_cell("hard", r)) > 2
+          for r in range(5, 22)))
+check("hard 21 takes three cards, so it is not a blackjack",
+      len(R.cards_for_cell("hard", 21)) == 3)
+
 print("\nthe bands the chart collapses really are flat")
 import itertools
 split = []

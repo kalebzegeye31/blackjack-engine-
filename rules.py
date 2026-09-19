@@ -239,7 +239,10 @@ def cards_for_cell(section, row):
     if row <= 11:
         return ["2", str(row - 2)]          # 5 -> 2+3 ... 11 -> 2+9, never a pair
     if row == 20:
-        return ["9", "J"]                   # not a pair of tens
+        # Every two-card 20 is two ten-valued cards, which is a pair and would
+        # be asked as a split. So it takes three. It used to be 9+J, which is
+        # a nineteen — the quiz showed one hand and graded the row above it.
+        return ["10", "6", "4"]
     if row == 21:
         return ["10", "6", "5"]             # two cards would be a blackjack
     return ["10", str(row - 10)]            # 12..19

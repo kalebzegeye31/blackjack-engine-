@@ -109,8 +109,21 @@ def test_agrees_with_the_chart():
         if not ok:
             bad.append("%s: chart says %s, index offers %s" % (p["key"], chart, sorted(sides)))
         check("%-12s chart move %-2s is one of its two sides" % (p["key"], chart), ok)
+        # The UI works out which side is the deviation by asking which one is
+        # NOT the chart. That only works if the two sides differ, and it cannot
+        # be inferred from the sign of the index: 16 v 10 and 12 v 4 both have
+        # an index of 0 and deviate in opposite directions.
+        if p["at_or_above"] == p["below"]:
+            bad.append("%s: both sides are %s, so neither is the deviation"
+                       % (p["key"], p["at_or_above"]))
     check("no index contradicts basic strategy on both sides", not bad,
           "; ".join(bad))
+    check("every index has two different sides, so the deviating one is identifiable",
+          all(q["at_or_above"] != q["below"] for q in C.ILLUSTRIOUS_18))
+
+    zero = [q["key"] for q in C.ILLUSTRIOUS_18 if q["index"] == 0]
+    check("the index-zero plays deviate in opposite directions, so the sign cannot be used",
+          len(zero) >= 2, ", ".join(zero))
 
 
 def test_ramp():

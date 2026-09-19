@@ -462,15 +462,24 @@ function indexVerdict() {
   const a = S.analysis;
   if (!a || !a.index || a.count_correct !== false) return "";
   const ix = a.index, tc = a.true_count;
-  const live = tc >= ix.index;
+  /* Which side of the index is the deviation depends on the sign of it. For
+     16 v 10 the chart hits and a high count makes you stand; for 12 v 4 the
+     chart stands and a LOW count makes you hit. Reading "at or above = the
+     deviation" told a player who had correctly been moved off the chart that
+     basic strategy still applied, one line above the passage explaining that
+     it did not. The server already works out which it is. */
+  const above = tc >= ix.index;
+  const moved = !!a.index_deviation;
   const want = ix.kind === "insurance"
     ? (a.count_move === "take" ? "take insurance" : "decline insurance")
     : MOVE[a.count_move];
   return '<div class="verdict no ixv"><h3>Index play missed — ' + esc(want) + "</h3>" +
     "<p><b>" + esc(ixName(ix)) + "</b> is one of the Illustrious 18. The index is <kbd>" +
-    ixNum(ix.index) + "</kbd>, and the true count was <kbd>" + ixNum(tc, 1) + "</kbd> — " +
-    (live ? "at or past it, so the deviation was on."
-          : "short of it, so basic strategy still applied.") + "</p>" +
+    ixNum(ix.index) + "</kbd>, and the true count was <kbd>" + ixNum(tc, 1) + "</kbd>, " +
+    (above ? "at or above it" : "below it") + " — " +
+    (moved
+      ? "which is the side that moves this one, so the chart no longer applies."
+      : "which is the side the chart already covers, so it still applies.") + "</p>" +
     "<p>" + esc(ix.why) + "</p>" +
     '<p class="fine">This engine puts the actual crossing at ' + ixNum(ix.crossing, 2) +
     ", which is where the published index of " + ixNum(ix.index) + " comes from.</p></div>";
@@ -1058,15 +1067,33 @@ function indexPanel(c) {
     "</div></div>";
 }
 
+/* Which side of an index is the deviation cannot be read off the sign of it:
+   16 v 10 and 12 v 4 both have an index of 0, and the deviation is above on one
+   and below on the other. It has to come from the chart. */
+function chartSideOf(c, p) {
+  if (p.kind === "insurance") return "below";          // you never insure by default
+  const section = p.kind === "pair" ? "pair" : "hard";
+  const row = p.kind === "pair" ? p.pair : p.total;
+  const cell = ((c.grid[section] || {})[row] || [])[c.upcards.indexOf(p.up)];
+  const chart = cell === "Ds" ? "S" : cell;            // as played when doubling is allowed
+  if (chart === p.at_or_above) return "above";
+  if (chart === p.below) return "below";
+  return "below";
+}
+
 function indexDetail(c, p) {
   const rec = (c.index_record || {})[p.key];
-  const above = p.at_or_above === "take" ? "take insurance" : CODE_NAME[p.at_or_above];
-  const below = p.below === "decline" ? "decline it" : CODE_NAME[p.below];
+  const name = (m) => m === "take" ? "take insurance" : m === "decline" ? "decline it"
+                    : (CODE_NAME[m] || m);
+  const chartSide = chartSideOf(c, p);
+  const tag = (side) => side === chartSide
+    ? " — what the chart already says" : " — the deviation";
   return '<div class="panel side"><div class="phead"><h2>' + esc(ixLabel(p).toUpperCase()) +
     "</h2><em>#" + p.rank + " of 18</em></div><div class=" + '"pbody">' +
     '<div class="ixbig">' + ixNum(p.index) + '<span>TRUE COUNT</span></div>' +
-    "<p>At <b>" + ixNum(p.index) + "</b> or above: <kbd>" + esc(above) + "</kbd>.<br>" +
-    "Below it: <kbd>" + esc(below) + "</kbd> — what the chart already says.</p>" +
+    "<p>At <b>" + ixNum(p.index) + "</b> or above: <kbd>" + esc(name(p.at_or_above)) +
+    "</kbd>" + tag("above") + ".<br>" +
+    "Below it: <kbd>" + esc(name(p.below)) + "</kbd>" + tag("below") + ".</p>" +
     "<p>" + esc(p.why) + "</p>" +
     '<div class="note"><b>Where the number comes from.</b> Dealing six thousand shoes and ' +
     "sampling what was left every time the count passed here, this engine puts the actual " +

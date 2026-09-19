@@ -676,8 +676,9 @@ function drawTable() {
       denoms.map((v) => '<button class="chip" data-v="' + v + '" onclick="addBet(' + v + ')"><span>' + v + "</span></button>").join("") +
       '<button class="mv" style="flex:0 0 auto;padding:9px 14px" onclick="clearBet()">Reset</button></div>' +
       '<div class="betline">Betting <b>' + money(PENDING_BET) + "</b> of " + money(S.bankroll) +
-      " — that is " + pct(PENDING_BET / S.bankroll) + " of what you brought, " +
-      (S.bankroll / PENDING_BET).toFixed(1) + " bets deep.</div>" +
+      " — that is " + pct(S.bankroll ? PENDING_BET / S.bankroll : 0) + " of what you brought" +
+      (PENDING_BET > 0 ? ", " + (S.bankroll / PENDING_BET).toFixed(1) + " bets deep" : "") +
+      ".</div>" +
       '<button class="mv go" style="width:100%" onclick="doBet()">Deal<small>SPACE</small></button>';
   } else if (S.phase === "insurance") {
     h += '<div class="insline">' + (S.even_money
@@ -1651,8 +1652,11 @@ function countingPanel(st) {
 
     (worst.length
       ? '<div style="margin-top:14px"><p class="small">The index plays you are getting wrong. ' +
-        "These are worth more than any square on the basic chart, because they only come up " +
-        "when the money is already big.</p>" +
+        "Not one of them is big on its own — the best is worth about a fifteenth of a bet when you " +
+        "get it right, against a third of a bet for taking the double on 11 against a 6. They pay " +
+        "because they come round often, and the positive ones come round when your bet is at its " +
+        "biggest. The four that sit at a negative count arrive while you are betting the minimum, " +
+        "and are worth learning for the losses they save rather than the money they make.</p>" +
         worst.map((w) => '<div class="miss"><div>' + esc(ixLabel(w.p)) + " · index " +
           ixNum(w.p.index) + "</div><span>" + w.r.right + "/" + w.r.seen + "</span></div>").join("") +
         "</div>"

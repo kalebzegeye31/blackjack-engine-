@@ -830,11 +830,119 @@ async function viewChart() {
     "here is checked against the odds computed from a full shoe — the chart is not typed in from " +
     "a book, it is the play with the highest expected value, and it changes with the rules above. " +
     "Change the rules in <b>Setup</b> and the squares that move will move.</p>" +
-    "</div></div>" + cellDetail(c) + "</div>";
+    "</div></div>" + indexPanel(c) + cellDetail(c) + "</div>";
   $("foot").innerHTML =
     "D means double if the table lets you, otherwise hit. Ds means double if you can, otherwise stand " +
     "— it only appears on soft 18 and soft 19, where the hand is good enough to keep. " +
     "Click any square for what it means and your own record on it.";
+}
+
+/* ---------------- the deviation chart ----------------
+   The basic strategy grid above assumes you are not counting. This is the other
+   half: the squares where a big enough count changes the answer, and the number
+   at which it changes. Laid out the same way so the two read as one thing. */
+
+const IX_ROWS = [
+  ["hard", 9], ["hard", 10], ["hard", 11], ["hard", 12],
+  ["hard", 13], ["hard", 15], ["hard", 16], ["pair", 10],
+];
+
+function indexPanel(c) {
+  const ix = c.indices || [];
+  if (!ix.length) return "";
+  const rec = c.index_record || {};
+  const ins = ix.find((p) => p.key === "insurance");
+
+  /* index plays keyed by section+row+upcard, for the grid */
+  const at = {};
+  ix.forEach((p) => {
+    if (p.kind === "insurance") return;
+    const row = p.kind === "pair" ? p.pair : p.total;
+    at[p.kind + ":" + row + ":" + p.up] = p;
+  });
+
+  let grid = '<div class="cscroll"><table class="chart ixchart"><tr><th class="rh"></th>' +
+    c.upcards.map((u) => "<th>" + upLabel(u) + "</th>").join("") + "</tr>";
+  for (const [kind, row] of IX_ROWS) {
+    grid += '<tr><th class="rh">' + (kind === "pair" ? "T,T" : row) + "</th>";
+    c.upcards.forEach((u) => {
+      const p = at[kind + ":" + row + ":" + u];
+      if (!p) { grid += '<td class="ixnone"></td>'; return; }
+      const r = rec[p.key];
+      grid += '<td class="ixcell m' + p.at_or_above + (CHART_CELL === p.key ? " sel" : "") +
+        '" onclick="pickIndex(\'' + p.key + '\')" title="' +
+        esc(ixTitle(p)) + '"><b>' + ixNum(p.index) + "</b><i>" + p.at_or_above + "</i>" +
+        (r ? "<u>" + r.right + "/" + r.seen + "</u>" : "") + "</td>";
+    });
+    grid += "</tr>";
+  }
+  grid += "</table></div>";
+
+  /* the order to learn them in — the list is ranked by what it is worth */
+  const list = '<ol class="ixlist">' + ix.map((p) =>
+    '<li' + (CHART_CELL === p.key ? ' class="sel"' : "") +
+    ' onclick="pickIndex(\'' + p.key + '\')"><b>' + ixNum(p.index) + "</b>" +
+    "<span>" + esc(ixLabel(p)) + "</span><em>" +
+    (p.at_or_above === "take" ? "take it" : CODE_NAME[p.at_or_above] || p.at_or_above) +
+    " at " + ixNum(p.index) + " or above</em></li>").join("") + "</ol>";
+
+  return '<div class="panel" style="margin-top:16px"><div class="phead">' +
+    "<h2>INDEX PLAYS · THE ILLUSTRIOUS 18</h2><em>Hi-Lo · " + c.rules.decks + " decks · " +
+    (c.rules.hit_soft_17 ? "H17" : "S17") + "</em></div><div class="+ '"pbody">' +
+    '<div class="note"><b>Insurance is the big one.</b> ' + esc(ins ? ins.why : "") +
+    " Take it at <kbd>" + ixNum(ins ? ins.index : 3) + "</kbd> or above, decline it below. " +
+    "It is worth more than every playing deviation on this chart put together.</div>" +
+    '<h3 class="csec">WHERE THE COUNT MOVES THE CHART<span>The number is the true count at ' +
+    "which the square changes. At or above it, play the letter. Below it, play the chart." +
+    "</span></h3>" + grid +
+    '<h3 class="csec">IN THE ORDER WORTH LEARNING THEM<span>Ranked by what each one is ' +
+    "actually worth. The first six carry most of the value.</span></h3>" + list +
+    '<p class="fine">Surrender indices are not here, because this game has no surrender. ' +
+    "Every number was re-derived from this app's own engine rather than copied — click any " +
+    "square to see where the maths puts the crossing.</p>" +
+    "</div></div>";
+}
+
+function indexDetail(c, p) {
+  const rec = (c.index_record || {})[p.key];
+  const above = p.at_or_above === "take" ? "take insurance" : CODE_NAME[p.at_or_above];
+  const below = p.below === "decline" ? "decline it" : CODE_NAME[p.below];
+  return '<div class="panel side"><div class="phead"><h2>' + esc(ixLabel(p).toUpperCase()) +
+    "</h2><em>#" + p.rank + " of 18</em></div><div class=" + '"pbody">' +
+    '<div class="ixbig">' + ixNum(p.index) + '<span>TRUE COUNT</span></div>' +
+    "<p>At <b>" + ixNum(p.index) + "</b> or above: <kbd>" + esc(above) + "</kbd>.<br>" +
+    "Below it: <kbd>" + esc(below) + "</kbd> — what the chart already says.</p>" +
+    "<p>" + esc(p.why) + "</p>" +
+    '<div class="note"><b>Where the number comes from.</b> Dealing six thousand shoes and ' +
+    "sampling what was left every time the count passed here, this engine puts the actual " +
+    "crossing at <b>" + ixNum(p.crossing, 2) + "</b>. The published index is <b>" +
+    ixNum(p.index) + "</b>" +
+    (Math.abs(p.crossing - p.index) > 0.4
+      ? ", a little apart from it — the expected value either side is near enough identical " +
+        "that the rounding could fall either way, so the published number is used."
+      : ", which is where it rounds to.") + "</div>" +
+    (rec
+      ? '<div class="rec"><b>' + rec.right + " of " + rec.seen +
+        "</b><span>right, when this has come up</span></div>"
+      : '<p class="fine">This one has not come up yet.</p>') +
+    "</div></div>";
+}
+
+function ixLabel(p) {
+  if (p.kind === "insurance") return "Insurance";
+  if (p.kind === "pair") return "T,T v " + upLabel(p.up);
+  return p.total + " v " + upLabel(p.up);
+}
+
+function ixTitle(p) {
+  return ixLabel(p) + " → " + (CODE_NAME[p.at_or_above] || p.at_or_above) +
+    " at true count " + ixNum(p.index) + " or above, otherwise " +
+    (CODE_NAME[p.below] || p.below);
+}
+
+function pickIndex(key) {
+  CHART_CELL = CHART_CELL === key ? null : key;
+  draw();
 }
 
 function legend() {
@@ -896,6 +1004,11 @@ function cellDetail(c) {
       "better than playing sensibly by instinct — which tells you something useful about how " +
       "small the edges in this game are.</div></div></div>";
   }
+  /* CHART_CELL doubles as the selection for the index chart below, where it
+     holds an index key rather than a square name. */
+  const ix = (c.indices || []).find((p) => p.key === CHART_CELL);
+  if (ix) return indexDetail(c, ix);
+
   const parsed = parseCell(CHART_CELL);
   if (!parsed) return "";
   const [key, row, up] = parsed;

@@ -25,6 +25,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
 import coach
+import count as C
 import db
 import mastery as M
 import quiz as Q
@@ -502,6 +503,8 @@ class Handler(BaseHTTPRequestHandler):
                     "grid": {section: {str(row): g[section][row] for row in g[section]}
                              for section in ("hard", "soft", "pair")},
                     "heatmap": prof.heatmap(),
+                    "indices": C.ILLUSTRIOUS_18,
+                    "index_record": db.index_record(account_id),
                 })
 
         return self.send_json({"error": "not found"}, 404)

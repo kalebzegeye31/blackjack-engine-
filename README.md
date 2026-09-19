@@ -59,7 +59,7 @@ low, how you are playing, and your all-time records next to it.
 raising after a loss, betting too much of what you have, and playing a table
 that's too expensive for your bankroll.
 
-**Chart** — the full basic strategy chart, hard totals, soft totals and pairs.
+**Chart** — the full basic strategy chart, hard totals, soft totals and pairs, and below it the index chart: the squares where the count moves the answer, the true count at which each one moves, and the order worth learning them in.
 Click any square for what it means and your own record on it. It redraws itself
 for whatever rules you have set, and your decisions are graded against the same
 grid, so the two can never disagree.

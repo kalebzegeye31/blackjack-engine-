@@ -718,7 +718,7 @@ function drawIntu() {
     '<div class="hook">' + link(e.hook, terms) + "</div>" +
     '<div class="prose">' + e.paragraphs.map((p) => "<p>" + link(p, terms) + "</p>").join("") + "</div>" +
     '<div class="pic">' + e.picture + "</div>" +
-    (a && a.deviation
+    (a && a.deviation && a.true_count != null
       ? '<div class="note"><b>Right now the cards disagree with the chart.</b> With the count at ' +
         (a.true_count >= 0 ? "+" : "−") + Math.abs(a.true_count).toFixed(1) + ", what is left makes <b>" +
         MOVE[a.best_move] + "</b> better by " + a.dev_gap.toFixed(3) +

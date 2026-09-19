@@ -333,7 +333,7 @@ Not implemented: surrender, European no-hole-card, doubling for less.
   0.001 — smaller than the difference between six decks and infinite decks
 - The chart changes with the rules, and only in the cells it should
 
-`python3 test_game.py` — 59 checks that the table deals like a real one, including
+`python3 test_game.py` — 65 checks that the table deals like a real one, including
 every rule in the list above, and that every square of the chart has a written
 passage to go with it under every rule set.
 

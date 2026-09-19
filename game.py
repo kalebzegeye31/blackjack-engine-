@@ -229,7 +229,11 @@ class Table:
             return analysis
         out = dict(analysis)
         for key in ("true_count", "running_count", "count_move", "count_correct",
-                    "count_ev", "index", "index_deviation", "index_cost"):
+                    "count_ev", "index", "index_deviation", "index_cost",
+                    # "the cards disagree with the chart" is itself a count tell:
+                    # it only fires when the composition has drifted a long way,
+                    # and on a split hand you would read it before acting again.
+                    "deviation", "dev_gap"):
             out.pop(key, None)
         out["count_hidden"] = True
         return out

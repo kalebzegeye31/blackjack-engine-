@@ -412,6 +412,60 @@ try:
 finally:
     Table.shuffle, Table.draw, Table.reveal = _orig
 
+# ---------------------------------------------------------------------------
+# Hiding the count is the whole premise. Anything the browser is handed while it
+# is hidden is something the player did not earn — including a note that only
+# ever appears when the composition has drifted a long way, which says "the count
+# is extreme" without naming a number.
+print("\nnothing that gives the count away reaches the browser while it is hidden")
+
+_SECRETS = ("true_count", "running_count", "count_move", "count_correct",
+            "count_ev", "index", "index_deviation", "index_cost",
+            "deviation", "dev_gap")
+
+t = Table(config={"decks": 6, "others": 3, "table_min": 15, "penetration": 0.9},
+          bankroll=1e9)
+leaked, unprintable, shown, big = set(), 0, 0, 0
+for _ in range(2500):
+    t.new_round()
+    t.place_bet(15)
+    if t.phase == "insurance":
+        t.insurance(False)
+    guard = 0
+    while t.phase == "play":
+        hand = t.hands[t.active]
+        play = E.chart_play(hand["cards"], E.card_value(t.dealer[0]["rank"]),
+                            t.can_double(hand), t.can_split(hand), t.rules)
+        t.act(play["move"])
+        snap = t.snapshot()
+        a = snap.get("analysis") or {}
+        if abs(t.running_count) >= 4:
+            big += 1
+        if a.get("count_hidden"):
+            leaked |= {k for k in _SECRETS if k in a}
+            bet = snap.get("bet_check") or {}
+            leaked |= {k for k in ("true_count", "edge", "suggested") if k in bet}
+        else:
+            shown += 1
+        # the panel formats the count with .toFixed, so a note without one prints NaN
+        if a.get("deviation") and a.get("true_count") is None:
+            unprintable += 1
+        guard += 1
+        assert guard < 60
+
+check("no count-bearing field survives the scrub", not leaked, str(sorted(leaked)))
+check("no deviation note arrives without a count to print into it",
+      unprintable == 0, "%d of them" % unprintable)
+check("the count was genuinely running while this happened", big > 200, "%d decisions" % big)
+check("and the earned exceptions still come through", shown > 0, "%d decisions" % shown)
+
+t.ask_for_count()
+t.answer_count(t.running_count, t.decks_left())
+check("answering the check reveals the count",
+      t.snapshot()["analysis"] is None or not t.snapshot().get("count_hidden"))
+t.hide_count()
+check("and the next deal hides it again", not t.count_visible)
+
 print("\n%d passed, %d failed" % (len(PASS), len(FAIL)))
 if FAIL:
     for f in FAIL:

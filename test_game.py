@@ -9,6 +9,7 @@ dealer actually behaves, not against what the old code happened to do.
 """
 
 import random
+import re
 
 import engine as E
 import rules as R
@@ -539,6 +540,90 @@ check("a round that reaches the cut card is still played out",
 check("the tray is empty again on the new shoe", t.snapshot()["tray"]["total"] == 312)
 check("and the browser is never told where the card is",
       "cut_at" not in t.snapshot() and "cut_card_out" in t.snapshot())
+
+# ---------------------------------------------------------------------------
+# You must always be able to either finish the hand or leave the table.
+#
+# Running out of money is decided on the bankroll, and the moment you bet, the
+# money is on the table rather than in it - so a player betting their last chip
+# is "broke" with a live hand in front of them. The browser used to swap the
+# controls for a "stand up" panel on every phase but play, which on a dealer ace
+# took away the insurance buttons; the server refuses to close a session
+# mid-hand, and the table locked solid. No way to finish, no way to leave.
+print("\nrunning out of money never traps you in a hand")
+
+# The condition is read out of the browser code rather than copied into this
+# file. A constant here would only ever test itself: the first version of this
+# check kept passing with the bug put back, because the simulation was driven by
+# the phases the test believed in instead of the ones the app ships.
+js = open("static/app.js", encoding="utf-8").read()
+_cond = re.search(r"if \(S\.broke && (.+?)\) \{", js)
+check("the browser's rule for showing the panel can be found", bool(_cond),
+      "" if _cond else "the if() shape in drawTable changed")
+_expr = (_cond.group(1) if _cond else "False")
+
+
+def _banner_shows(phase):
+    """Evaluate the shipped JS condition for one phase."""
+    e = _expr.replace("&&", " and ").replace("||", " or ")
+    e = re.sub(r'S\.phase === "(\w+)"', lambda m: repr(phase == m.group(1)), e)
+    e = re.sub(r'S\.phase !== "(\w+)"', lambda m: repr(phase != m.group(1)), e)
+    return bool(eval(e, {"__builtins__": {}}, {}))
+
+
+PHASES = ("bet", "insurance", "play", "settled")
+BANNER = tuple(p for p in PHASES if _banner_shows(p))
+
+# and the phases the server will close a session from
+_srv = re.search(r'phase not in \(([^)]*)\)', open("server.py", encoding="utf-8").read())
+CAN_LEAVE = tuple(x.strip().strip('"') for x in _srv.group(1).split(",")) if _srv else ()
+
+check("the browser shows the panel on %s" % (BANNER,), set(BANNER) <= set(PHASES))
+check("the server lets you stand up from %s" % (CAN_LEAVE,), bool(CAN_LEAVE))
+check("every phase that shows the panel is one you can leave from",
+      set(BANNER) <= set(CAN_LEAVE),
+      "trapped in: %s" % (sorted(set(BANNER) - set(CAN_LEAVE)),))
+
+seen, stuck = set(), []
+for seed in range(120):
+    random.seed(seed)
+    t = Table(config={"decks": 6, "others": 2, "table_min": 25, "penetration": 0.75},
+              bankroll=25)                       # exactly one bet
+    t.new_round()
+    t.place_bet(25)
+    guard = 0
+    while True:
+        seen.add(t.phase)
+        showing = t.broke() and _banner_shows(t.phase)
+        leaving = t.phase in CAN_LEAVE
+        acting = t.phase in ("insurance", "play")
+        # the deadlock: the panel is up, and neither leaving nor acting is possible
+        if showing and not leaving:
+            stuck.append((seed, t.phase))
+        # and in general something must always be possible
+        if not (acting or leaving):
+            stuck.append((seed, t.phase, "no action at all"))
+        if t.phase == "insurance":
+            t.insurance(False)
+        elif t.phase == "play":
+            hand = t.hands[t.active]
+            play = E.chart_play(hand["cards"], E.card_value(t.dealer[0]["rank"]),
+                                t.can_double(hand), t.can_split(hand), t.rules)
+            t.act(play["move"])
+        else:
+            break
+        guard += 1
+        assert guard < 60
+
+check("no state where the panel is up but the hand is still live", not stuck,
+      str(stuck[:2]))
+check("the insurance phase was actually reached while broke",
+      "insurance" in seen, str(sorted(seen)))
+check("and every one of those hands ran to settled", "settled" in seen)
+
+# the keyboard must not deal a hand that cannot be paid for
+check("space cannot deal from a settled hand when broke",
+      'S.phase === "settled" && !S.broke) doNext()' in js)
 
 print("\n%d passed, %d failed" % (len(PASS), len(FAIL)))
 if FAIL:

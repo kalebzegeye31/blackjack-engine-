@@ -709,7 +709,19 @@ function drawTable() {
 
   /* controls */
   h += '<div class="controls">';
-  if (S.broke && S.phase !== "play") {
+  /* Only once the hand is actually over.
+     
+     Going below the minimum is decided on the bankroll, and the moment you bet,
+     your money is on the table rather than in it — so a $25 player betting $25
+     is "broke" with a live hand in front of them. This branch used to fire on
+     every phase but "play", which meant it replaced the insurance buttons on a
+     dealer ace. There was then no way to answer insurance, and the server quite
+     rightly refuses to close a session mid-hand, so the table locked up with a
+     hand that could not be finished and a session that could not be left.
+     
+     These are the two phases the server will let you stand up from, and they
+     are the two where nothing is owed on the felt. */
+  if (S.broke && (S.phase === "bet" || S.phase === "settled")) {
     h += '<div class="note bad"><b>You are below the table minimum.</b> The session is over ' +
       "— stand up, and earn the next buy-in on the Quiz tab.</div>" +
       '<button class="mv go" style="width:100%;margin-top:10px" onclick="standUp()">Stand up</button>';
@@ -2515,7 +2527,7 @@ document.addEventListener("keydown", (e) => {
   } else if (e.code === "Space") {
     e.preventDefault();
     if (S.phase === "bet" && !S.broke) doBet();
-    else if (S.phase === "settled") doNext();
+    else if (S.phase === "settled" && !S.broke) doNext();
     else if (S.phase === "idle") sitDown();
   }
 });

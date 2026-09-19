@@ -349,7 +349,7 @@ Not implemented: surrender, European no-hole-card, doubling for less.
   0.001 — smaller than the difference between six decks and infinite decks
 - The chart changes with the rules, and only in the cells it should
 
-`python3 test_game.py` — 82 checks that the table deals like a real one, including
+`python3 test_game.py` — 90 checks that the table deals like a real one, including
 every rule in the list above, and that every square of the chart has a written
 passage to go with it under every rule set.
 
@@ -357,7 +357,7 @@ passage to go with it under every rule set.
 from the previous version upgrades without losing a row, and that connections are
 handed back rather than leaked.
 
-`python3 test_count.py` — 109 checks: all eighteen indices re-derived, and both
+`python3 test_count.py` — 114 checks: all eighteen indices re-derived, and both
 sides of every one of them shown to actually differ.
 
 `python3 test_mastery.py` — 53 checks on the score you judge yourself by: that a

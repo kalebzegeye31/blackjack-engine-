@@ -127,6 +127,38 @@ def test_ramp():
           C.judge_ramp(8, 0.0)["level"] == "warn")
 
 
+def test_deck_estimates():
+    print("\njudging the discard tray")
+    e = C.grade_estimate(3.0, 3.0, 6)
+    check("a spot-on estimate passes", e["ok"] and e["tc_off"] == 0)
+    check("and gives the true count it implies", e["tc_said"] == 2.0)
+    check("half a deck out is still fine", C.grade_estimate(2.5, 3.0, 6)["ok"])
+    check("and so is half a deck the other way", C.grade_estimate(3.5, 3.0, 6)["ok"])
+    bad = C.grade_estimate(2.0, 4.0, 8)
+    check("two decks out does not pass", not bad["ok"])
+    check("and it reports the true count it would have produced",
+          bad["tc_said"] == 4.0 and bad["tc_actual"] == 2.0, "said +4.0 vs real +2.0")
+    check("the error is signed", bad["off"] == -2.0)
+    check("a nonsense estimate does not crash",
+          C.grade_estimate("half", 3.0, 6)["ok"] is False)
+    check("nor does nothing at all", C.grade_estimate(None, 3.0, 6)["ok"] is False)
+    check("zero decks is floored rather than dividing by zero",
+          C.grade_estimate(0, 1.0, 4)["tc_said"] == 16.0)
+
+    print("\n  the point of it: a perfect count divided by a bad estimate")
+    # Running count +6 is correct. The shoe really has 3 decks left, so the true
+    # count is +2 and 12 v 2 is a hit. Misjudge the tray as one deck and you
+    # believe it is +6, which stands. The arithmetic was never wrong.
+    e = C.grade_estimate(1.0, 3.0, 6)
+    tc_real, tc_thought = e["tc_actual"], e["tc_said"]
+    move_real = C.correct_move("H", "hard", 12, None, 2, tc_real)[0]
+    move_thought = C.correct_move("H", "hard", 12, None, 2, tc_thought)[0]
+    check("a right count and a wrong tray misplays 12 v 2",
+          move_real == "H" and move_thought == "S",
+          "real %+.1f -> %s, believed %+.1f -> %s" % (tc_real, move_real, tc_thought, move_thought))
+    check("and the estimate is marked as the thing that failed", not e["ok"])
+
+
 def test_grading():
     print("\ngrading a count you were asked for")
     check("right is right", C.grade_count(5, 5)["ok"])
@@ -229,6 +261,7 @@ if __name__ == "__main__":
     test_moves()
     test_agrees_with_the_chart()
     test_ramp()
+    test_deck_estimates()
     test_grading()
     test_indices_against_the_engine()
     print("\n%d passed, %d failed" % (len(PASS), len(FAIL)))

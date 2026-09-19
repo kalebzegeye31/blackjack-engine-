@@ -117,12 +117,27 @@ that miss costs, times how often the hand turns up, times 80 hands an hour.
 
 ## Counting
 
-The count is **hidden**. That is the point of it: a number sitting on screen is
-not a count you can keep, and no casino prints one for you.
+The count is **hidden**, and so is everything you would use to work it out. No
+running count, no true count, no decks remaining, no percentage of the shoe
+used. A real table gives you none of those, and a trainer that hands them over
+is training you for a game nobody deals.
 
-Press **REVEAL COUNT** and it does not simply tell you — it asks you first. You
-type what you think the running count is, it marks you, and only then shows the
-truth. Peeking always costs a graded answer, so the button can never quietly
+What you get instead is the **discard tray**: two stacks beside the felt, one
+for what is still in the shoe and one for what has been played. They grow and
+shrink as cards come out, and judging the depth by eye is the whole exercise.
+That estimate is half of counting and the half nobody practises — keeping a
+running count is arithmetic you either can or cannot do, but reading the tray is
+a guess made across a table, and it is where most true counts actually go wrong.
+
+Both aids can be switched on in Setup if you want them while you find your feet.
+They default to off.
+
+Press **REVEAL COUNT** and it does not simply tell you — it asks you first, for
+two things: what you think the running count is, and how many decks you reckon
+are left in the shoe. Both get marked. The count has to be exact; the deck
+estimate is allowed half a deck either way, which is about what a good player
+manages. Then it shows you the running count — and only the running count, since
+dividing it is arithmetic you should be doing yourself. Peeking always costs a graded answer, so the button can never quietly
 become a readout you lean on. Revealing lasts one round; the next deal hides it
 again.
 
@@ -131,9 +146,13 @@ demands the count whether you wanted to check or not. A player who only tests
 themselves when they feel confident is grading their best moments, which is how
 you end up at a real table discovering you lost the count twenty hands ago.
 
-Answers are marked exactly. Close is still wrong: an error in the running count
-does not average out, it rides with you to the shuffle and skews every true
-count you derive from it.
+An error in the running count does not average out: it rides with you to the
+shuffle and skews every true count you derive from it. A bad tray read is worse,
+because it is silent. Count a shoe perfectly to +6, misjudge three decks left as
+one, and you will believe the true count is +6 when it is +2 — which stands on
+12 against a 2 where the correct play is to hit. The arithmetic was never wrong.
+That is why both halves are graded, and why a check only counts as clean when
+both are right.
 
 ### The index plays
 

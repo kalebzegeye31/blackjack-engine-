@@ -67,6 +67,11 @@ class Table:
             "random_checks": True,   # demand the count uninvited, now and then
             "check_rate": 0.12,      # roughly one round in eight
             "spread": 8,             # top bet in units, for grading the ramp
+            # What the table is willing to tell you. Both default to off,
+            # because a real one tells you neither: you judge the discard tray
+            # by eye and do the division in your head.
+            "show_decks_left": False,
+            "show_true_count": False,
         }
         if config:
             self.config.update({k: v for k, v in config.items() if k in self.config})
@@ -99,6 +104,8 @@ class Table:
         self.config["random_checks"] = bool(self.config.get("random_checks", True))
         self.config["check_rate"] = min(0.5, max(0.0, float(self.config.get("check_rate", 0.12))))
         self.config["spread"] = max(1, min(20, int(self.config.get("spread", 8))))
+        self.config["show_decks_left"] = bool(self.config.get("show_decks_left", False))
+        self.config["show_true_count"] = bool(self.config.get("show_true_count", False))
         self.rules = R.normalise(self.config)
 
     # ---------------- shoe ----------------
@@ -131,21 +138,29 @@ class Table:
         if self.pending_check is None:
             self.pending_check = {
                 "reason": reason,
-                "decks_left": round(self.decks_left(), 2),
-                "cards_left": len(self.shoe),
+                "ask_decks": not self.config.get("show_decks_left", False),
             }
         return self.pending_check
 
-    def answer_count(self, said):
+    def answer_count(self, said, said_decks=None):
         """
         Mark an answer to a count check, then let the count be seen.
 
-        Answering is what buys you the number: right or wrong, you get told what
-        it actually is, because a check you cannot learn from is just a quiz.
+        Two answers when the table isn't giving you decks remaining: the running
+        count, and your read of how deep the discard tray is. The second is
+        graded too, because a true count is only as good as the estimate you
+        divided by, and that is the half people never practise.
         """
         actual = self.running_count
         result = C.grade_count(said, actual)
+        result["count_ok"] = result["ok"]     # kept: the two halves fail differently
+        estimate = None
+        if not self.config.get("show_decks_left", False):
+            estimate = C.grade_estimate(said_decks, self.decks_left(), actual)
+            # the check is only clean if both halves are
+            result["ok"] = bool(result["ok"] and estimate["ok"])
         result.update({
+            "estimate": estimate,
             "reason": (self.pending_check or {}).get("reason", "asked"),
             "true_count": round(self.true_count(), 2),
             "decks_left": round(self.decks_left(), 2),
@@ -746,12 +761,21 @@ class Table:
             "can_double": self.can_double(active_hand) if active_hand else False,
             "can_split": self.can_split(active_hand) if active_hand else False,
             "running_count": self.running_count if self.count_visible else None,
-            "true_count": round(self.true_count(), 2) if self.count_visible else None,
+            # The true count is arithmetic you should be doing. It only appears
+            # if you have asked the table to do it for you.
+            "true_count": (round(self.true_count(), 2)
+                           if (self.count_visible and self.config["show_true_count"]) else None),
             "count_hidden": not self.count_visible,
             "count_check": self.pending_check,
             "count_record": self.count_record(),
-            "decks_left": round(self.decks_left(), 2),
-            "shoe_used": round(self.dealt / (self.config["decks"] * 52), 3),
+            # The discard tray: how many cards have gone, and how many there
+            # were. Sent so the tray can be drawn, not so a number can be
+            # printed - judging the depth by eye is the whole exercise.
+            "tray": {"dealt": self.dealt, "total": self.config["decks"] * 52},
+            "decks_left": (round(self.decks_left(), 2)
+                           if self.config["show_decks_left"] else None),
+            "shoe_used": (round(self.dealt / (self.config["decks"] * 52), 3)
+                          if self.config["show_decks_left"] else None),
             "cards_left": len(self.shoe),
             "config": self.config,
             "rules": self.rules,

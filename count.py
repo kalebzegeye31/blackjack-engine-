@@ -304,6 +304,49 @@ def judge_ramp(units_bet, tc, spread=DEFAULT_SPREAD):
 # Grading the count itself
 # ---------------------------------------------------------------------------
 
+#: how far out a deck estimate can be before it starts moving decisions
+DECK_TOLERANCE = 0.5
+
+
+def grade_estimate(said_decks, actual_decks, running):
+    """
+    Mark an estimate of how many decks are left, and the true count that falls
+    out of it.
+
+    This is the half of counting that nobody practises. Keeping a running count
+    is arithmetic and you either can or cannot do it; judging the discard tray
+    is a physical guess made across a table, and it is where most true counts go
+    wrong. An estimate half a deck out is fine. A whole deck out will flip index
+    plays and mis-size bets, and it does it silently, because the running count
+    it is dividing was perfectly correct.
+    """
+    try:
+        said_decks = float(said_decks)
+    except (TypeError, ValueError):
+        return {"ok": False, "said": None, "actual": actual_decks, "off": None,
+                "tc_said": None, "tc_actual": true_count(running, actual_decks),
+                "tc_off": None, "text": "That wasn't a number of decks."}
+    if said_decks <= 0:
+        said_decks = 0.25
+
+    off = said_decks - actual_decks
+    tc_said = true_count(running, said_decks)
+    tc_actual = true_count(running, actual_decks)
+    tc_off = tc_said - tc_actual
+    close = abs(off) <= DECK_TOLERANCE
+
+    if close:
+        text = ("Deck estimate good: you said %.2g, it was %.2g." % (said_decks, actual_decks))
+    else:
+        text = ("You put the shoe at %.2g decks and it was %.2g. That is %.2g out, "
+                "which turns a running count of %+d into a true count of %+.1f when it "
+                "is really %+.1f — enough to move an index play."
+                % (said_decks, actual_decks, abs(off), running, tc_said, tc_actual))
+    return {"ok": close, "said": said_decks, "actual": actual_decks, "off": round(off, 2),
+            "tc_said": round(tc_said, 2), "tc_actual": round(tc_actual, 2),
+            "tc_off": round(tc_off, 2), "text": text}
+
+
 def grade_count(said, actual):
     """
     Mark an answer to "what is the running count?".

@@ -292,35 +292,82 @@ const miniEl = (c) =>
    quietly become a substitute for counting. */
 function countBar() {
   if (S.count_check) {
-    return '<span class="cask">' +
-      (S.count_check.reason === "interrupted" ? "COUNT CHECK · " : "") +
-      'RUNNING COUNT?</span>' +
+    const key = "if(event.key==='Enter'){event.preventDefault();answerCount();}";
+    let h = '<span class="cask">' +
+      (S.count_check.reason === "interrupted" ? "COUNT CHECK · " : "") + "RUNNING?</span>" +
       '<input class="cin" id="cans" type="text" inputmode="numeric" autocomplete="off" ' +
-      'placeholder="+0" onkeydown="if(event.key===\'Enter\'){event.preventDefault();answerCount();}">' +
-      '<button class="cbtn go" onclick="answerCount()">Check</button>';
+      'placeholder="+0" onkeydown="' + key + '">';
+    if (S.count_check.ask_decks) {
+      h += '<span class="cask thin">DECKS LEFT?</span>' +
+        '<input class="cin" id="cdecks" type="text" inputmode="decimal" autocomplete="off" ' +
+        'placeholder="0.0" onkeydown="' + key + '">';
+    }
+    return h + '<button class="cbtn go" onclick="answerCount()">Check</button>';
   }
   if (S.count_hidden) {
     const rec = S.count_record || {};
     return '<button class="cbtn" onclick="askCount()">REVEAL COUNT</button>' +
       (rec.asked ? '<span class="cmini">' + rec.right + "/" + rec.asked + " right</span>" : "");
   }
-  const rc = S.running_count, tc = S.true_count;
-  return '<span class="cshow">RUNNING ' + sgn(rc) + " · TRUE " +
-    (tc >= 0 ? "+" : "−") + Math.abs(tc).toFixed(1) + "</span>";
+  /* Revealed. The running count is a fact you either kept or did not. The true
+     count is division, and the app only does it for you if you asked it to. */
+  const tc = S.true_count;
+  return '<span class="cshow">RUNNING ' + sgn(S.running_count) +
+    (tc != null ? " · TRUE " + (tc >= 0 ? "+" : "−") + Math.abs(tc).toFixed(1) : "") +
+    "</span>";
 }
 
 function sgn(n) { return (n >= 0 ? "+" : "−") + Math.abs(n); }
+
+/* The discard tray. Played cards pile up in it and that pile is the only thing
+   telling you how deep the shoe is — no percentage, no decks-remaining. Judging
+   it by eye is the half of counting that decides your true count, so the app
+   will not do it for you unless you ask it to in Setup. */
+function trayBar() {
+  const t = S.tray || { dealt: 0, total: 312 };
+  const frac = Math.max(0, Math.min(1, t.dealt / (t.total || 1)));
+  const shoe = 1 - frac;
+  return '<span class="trays">' +
+    '<span class="tray shoe" title="cards still to come"><i style="height:' +
+      (shoe * 100).toFixed(1) + '%"></i></span>' +
+    '<span class="tlab">SHOE</span>' +
+    '<span class="tray disc" title="cards already played"><i style="height:' +
+      (frac * 100).toFixed(1) + '%"></i></span>' +
+    '<span class="tlab">DISCARDS</span>' +
+    (S.decks_left != null
+      ? '<span class="tnum">' + S.decks_left + " decks left</span>"
+      : "") +
+    "</span>";
+}
 
 async function askCount() { await send("/api/count/ask", {}); const f = $("cans"); if (f) f.focus(); }
 
 async function answerCount() {
   const el = $("cans");
   if (!el) return;
-  const said = el.value.trim();
-  const next = await send("/api/count/answer", { said: said });
+  const decks = $("cdecks");
+  const next = await send("/api/count/answer", {
+    said: el.value.trim(),
+    decks: decks ? decks.value.trim() : null,
+  });
   const r = next && next.count_result;
-  if (r) toast(r.ok ? "Count right: running " + sgn(r.actual) : r.text);
+  if (!r) return;
+  /* Two things were marked, so say which one went wrong rather than one verdict
+     covering both — they fail for completely different reasons. */
+  const est = r.estimate;
+  if (r.ok) {
+    toast("Both right. Running " + sgn(r.actual) +
+      (est ? ", " + est.actual + " decks left, true " + sgn2(est.tc_actual) : ""));
+  } else if (!r.count_ok && est && !est.ok) {
+    toast(r.text + " " + est.text);
+  } else if (!r.count_ok) {
+    toast(r.text);
+  } else {
+    toast("Running count right at " + sgn(r.actual) + ". " + est.text);
+  }
 }
+
+function sgn2(n) { return (n >= 0 ? "+" : "−") + Math.abs(n).toFixed(1); }
 
 /* The count only breaks cover for a missed index play. Getting one right tells
    you nothing you did not already know; getting one wrong is the whole lesson,
@@ -365,10 +412,7 @@ function drawTable() {
     "<small>DEALER MUST DRAW TO 16 AND " +
     (S.rules.hit_soft_17 ? "HIT SOFT 17" : "STAND ON ALL 17s") +
     " · INSURANCE PAYS 2 TO 1</small></div>" +
-    '<div class="shoebar">' + countBar() +
-    '<span>' + (S.decks_left != null ? S.decks_left + " DECKS LEFT · " : "") +
-    'SHOE USED <span class="meter"><i style="width:' +
-    Math.round(S.shoe_used * 100) + '%"></i></span></span></div>';
+    '<div class="shoebar">' + countBar() + trayBar() + "</div>";
 
   /* dealer */
   h +=
@@ -1746,6 +1790,36 @@ function viewSetup() {
     ' onclick="saveSetup()">Apply</button>' +
     "</div></div></div>" +
 
+    '<div class="panel" style="margin-top:16px"><div class="phead"><h2>COUNTING</h2></div>' +
+    '<div class="pbody">' +
+    '<div class="field"><label>DECKS REMAINING</label>' +
+    sel("s_sdl", c.show_decks_left ? 1 : 0, [
+      [0, "Judge it from the discard tray — like a real table"],
+      [1, "Tell me the number"]]) + "</div>" +
+    '<div class="field"><label>TRUE COUNT</label>' +
+    sel("s_stc", c.show_true_count ? 1 : 0, [
+      [0, "I'll do the division myself"],
+      [1, "Work it out for me"]]) + "</div>" +
+    '<div class="field"><label>COUNT CHECKS</label>' +
+    sel("s_rc", c.random_checks ? 1 : 0, [
+      [1, "Interrupt me now and then"],
+      [0, "Only when I ask"]]) + "</div>" +
+    '<div class="field"><label>HOW OFTEN</label>' +
+    sel("s_cr", c.check_rate, [[0.06, "Rarely — about one round in sixteen"],
+      [0.12, "Now and then — about one in eight"],
+      [0.25, "Often — about one in four"]]) + "</div>" +
+    '<div class="field"><label>BET SPREAD</label>' +
+    sel("s_spread", c.spread, [[4, "1 to 4 — quiet"], [8, "1 to 8 — standard"],
+      [12, "1 to 12 — aggressive"], [20, "1 to 20 — you will be asked to leave"]]) + "</div>" +
+    '<button class="mv go" style="width:100%"' + (locked ? " disabled" : "") +
+    ' onclick="saveSetup()">Apply</button>' +
+    '<div class="note" style="margin-top:14px"><b>Both defaults are the hard ones on purpose.</b> ' +
+    "A real table tells you neither how deep the shoe is nor what the true count is. You look at the " +
+    "discard tray, guess the decks remaining, and divide in your head. Getting handed those numbers " +
+    "removes the two things most likely to go wrong, so the practice stops resembling the thing you " +
+    "are practising for.</div>" +
+    "</div></div>" +
+
     '<div class="panel" style="margin-top:16px"><div class="pbody">' +
     '<div class="note"><b>What the number of players actually changes.</b> ' +
     "Not your correct play. Other people’s cards never affect which move is right for your hand " +
@@ -1770,6 +1844,9 @@ async function saveSetup() {
     decks: +$("s_decks").value, penetration: +$("s_pen").value,
     blackjack_pays: +$("s_bj").value, hit_soft_17: !!+$("s_h17").value,
     das: !!+$("s_das").value, resplit_aces: !!+$("s_ra").value, max_hands: +$("s_mh").value,
+    show_decks_left: !!+$("s_sdl").value, show_true_count: !!+$("s_stc").value,
+    random_checks: !!+$("s_rc").value, check_rate: +$("s_cr").value,
+    spread: +$("s_spread").value,
   });
   CHART = null;
   PENDING_BET = S.config.table_min;

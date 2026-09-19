@@ -455,3 +455,22 @@ table.chart td.k3{box-shadow:inset 0 0 0 2px var(--good)}
 .verdict.ixv{border-left-color:var(--warn)}
 .verdict.ixv h3{color:var(--warn)}
 .verdict.ixv .fine{opacity:.6;font-size:11px;margin-top:6px}
+
+/* ---------------- the discard tray ----------------
+   Two stacks of card edges: what is left in the shoe, and what has been played.
+   Deliberately unlabelled with any number — judging the depth by eye is the
+   skill, and a percentage next to it would make the eye redundant. */
+.shoebar .trays{display:flex;align-items:flex-end;gap:5px;padding-bottom:1px}
+.shoebar .tray{width:30px;height:46px;position:relative;border-radius:2px;
+  background:rgba(0,0,0,.34);box-shadow:inset 0 0 0 1px rgba(0,0,0,.4);
+  display:block;overflow:hidden}
+.shoebar .tray i{position:absolute;left:0;right:0;bottom:0;display:block;
+  background-image:repeating-linear-gradient(to top,
+    var(--bone) 0, var(--bone) 1.5px, rgba(0,0,0,.42) 1.5px, rgba(0,0,0,.42) 3px);
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.3);
+  transition:height .45s ease}
+.shoebar .tray.shoe i{opacity:.85}
+.shoebar .tray.disc i{opacity:.5;filter:saturate(.4)}
+.shoebar .tlab{font-size:8px;letter-spacing:.1em;opacity:.45;margin-right:3px}
+.shoebar .tnum{margin-left:7px;opacity:.6}
+.shoebar .cask.thin{margin-left:9px;font-weight:400;opacity:.8}

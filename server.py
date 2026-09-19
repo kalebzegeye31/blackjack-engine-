@@ -605,7 +605,8 @@ class Handler(BaseHTTPRequestHandler):
         cfg = dict(acct["config"])
         for key in ("decks", "others", "table_min", "table_max", "penetration",
                     "hit_soft_17", "das", "resplit_aces", "max_hands", "blackjack_pays",
-                    "random_checks", "check_rate", "spread"):
+                    "random_checks", "check_rate", "spread",
+                    "show_decks_left", "show_true_count"):
             if key in data:
                 cfg[key] = data[key]
         clean = dict(Table(config=cfg).config)     # one place decides what is legal
@@ -717,7 +718,7 @@ class Handler(BaseHTTPRequestHandler):
         table = live.table
         if not table.pending_check:
             table.ask_for_count("asked")
-        result = table.answer_count(data.get("said"))
+        result = table.answer_count(data.get("said"), data.get("decks"))
         db.log_count_check(account_id, live.session_id, result)
         return self.send_json(payload(account_id, {"count_result": result}))
 

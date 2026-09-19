@@ -4,12 +4,14 @@ mastery.py — how well you actually know the chart.
 Raw accuracy is a bad measure of a card player. Most of the hands you are dealt
 are trivial — a hard 20, a hard 8 — and getting those right forever will hold a
 number in the nineties while the six cells you keep fluffing quietly cost you
-money. Worse, the number only goes up, so it stops telling you anything.
+money.
 
 So there are two numbers here.
 
   Accuracy   plain and unweighted: decisions you got right, out of all of them.
              Useful, honest, and easy to game by playing a lot of easy hands.
+             It also goes numb: every hand adds to the denominator, so after a
+             few thousand decisions nothing you do moves it much either way.
 
   Sharpness  what this file computes. Each cell of the chart carries a weight
              that falls as you master it and stays high while you don't, so

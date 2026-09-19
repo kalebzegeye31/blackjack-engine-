@@ -334,6 +334,84 @@ check("and 17+ is all stand, 8- is all hit",
       set("".join("".join(R.grid(R.DEFAULT_RULES)["hard"][r]) for r in range(17, 22))) == {"S"}
       and set("".join("".join(R.grid(R.DEFAULT_RULES)["hard"][r]) for r in range(5, 9))) == {"H"})
 
+# ---------------------------------------------------------------------------
+# The running count the player is graded against has to be the count.
+#
+# The hole card is dealt face down and only joins the count when it is turned
+# over. A reshuffle can land in between — draw() has a safety net that reshuffles
+# when the shoe runs down mid-round, which a deep-penetration full table reaches
+# about once in three hundred rounds. The card then belonged to a shoe that no
+# longer exists, and folding it into the fresh count leaves the running count
+# permanently one out: the player counts perfectly and is marked wrong for the
+# rest of the shoe.
+print("\nthe running count is the Hi-Lo sum of what has actually been turned up")
+
+_orig = (Table.shuffle, Table.draw, Table.reveal)
+_seen = {"cards": [], "from_shoe": set(), "shuffles": 0, "midround": 0, "inround": False}
+
+
+def _shuffle(self):
+    if _seen["inround"]:
+        _seen["midround"] += 1
+    _seen["cards"] = []
+    _seen["from_shoe"] = set()
+    _seen["shuffles"] += 1
+    return _orig[0](self)
+
+
+def _draw(self, counted=True):
+    card = _orig[1](self, counted)
+    _seen["from_shoe"].add(id(card))
+    if counted:
+        _seen["cards"].append(card)
+    return card
+
+
+def _reveal(self):
+    """
+    The oracle has to be independent of what reveal() decides to do, or it
+    tracks the bug instead of catching it. A turned-up hole card belongs in the
+    count exactly when it came out of the shoe now in play.
+    """
+    hole = self.dealer[1] if (len(self.dealer) > 1 and self.hole_hidden) else None
+    out = _orig[2](self)
+    if hole is not None and id(hole) in _seen["from_shoe"]:
+        _seen["cards"].append(hole)
+    return out
+
+
+Table.shuffle, Table.draw, Table.reveal = _shuffle, _draw, _reveal
+try:
+    for pen in (0.75, 0.9):
+        _seen.update(cards=[], shuffles=0, midround=0, inround=False)
+        drift = []
+        t = Table(config={"decks": 6, "others": 5, "table_min": 15,
+                            "penetration": pen}, bankroll=1e9)
+        for _ in range(2500):
+            t.new_round()
+            t.place_bet(15)
+            _seen["inround"] = True
+            if t.phase == "insurance":
+                t.insurance(False)
+            guard = 0
+            while t.phase == "play":
+                hand = t.hands[t.active]
+                play = E.chart_play(hand["cards"], E.card_value(t.dealer[0]["rank"]),
+                                    t.can_double(hand), t.can_split(hand), t.rules)
+                t.act(play["move"])
+                guard += 1
+                assert guard < 60
+            _seen["inround"] = False
+            want = sum(E.hilo(E.card_value(c["rank"])) for c in _seen["cards"])
+            if t.running_count != want:
+                drift.append((t.running_count, want))
+        check("penetration %.2f: the count never drifts from the cards" % pen,
+              not drift, "%d rounds out, first %s" % (len(drift), drift[:1]))
+        check("  (%d shuffles, %d of them mid-round)"
+              % (_seen["shuffles"], _seen["midround"]), True)
+finally:
+    Table.shuffle, Table.draw, Table.reveal = _orig
+
 print("\n%d passed, %d failed" % (len(PASS), len(FAIL)))
 if FAIL:
     for f in FAIL:

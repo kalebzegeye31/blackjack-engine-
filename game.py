@@ -115,6 +115,11 @@ class Table:
         self.shoe = fresh_shoe(self.config["decks"])
         self.dealt = 0
         self.running_count = 0
+        # Which shoe this is. The hole card is dealt face down and only joins the
+        # count when it is turned over, and a reshuffle can land in between — see
+        # reveal(), which would otherwise fold a card from the old shoe into the
+        # fresh count and mark the player wrong for the rest of it.
+        self.shoe_id = getattr(self, "shoe_id", 0) + 1
 
     def needs_shuffle(self):
         return self.dealt > self.config["penetration"] * self.config["decks"] * 52
@@ -257,6 +262,7 @@ class Table:
         self.hands = []
         self.seats = []
         self.hole_hidden = True
+        self.hole_shoe = None
         self.active = 0
         self.phase = "bet"
         self.bet = 0.0
@@ -313,6 +319,7 @@ class Table:
             else:
                 self.hands[0]["cards"].append(self.draw())
                 self.dealer.append(self.draw(counted=False))  # hole card
+            self.hole_shoe = self.shoe_id                # the shoe it came from
         self.session["rounds"] += 1
         # insurance is offered before the dealer looks at the hole card
         if E.card_value(self.dealer[0]["rank"]) == 11:
@@ -327,8 +334,18 @@ class Table:
                 "result": None, "net": 0.0}
 
     def reveal(self):
+        """
+        Turn the hole card over, and only now let it into the count.
+
+        If the shoe was reshuffled while that card sat face down — which the
+        safety net in draw() can do when a deep-penetration round runs the shoe
+        down mid-hand — then it belongs to a shoe that no longer exists. Counting
+        it here would leave the running count permanently one out, and the player
+        keeping a perfect count would be marked wrong for the rest of the shoe.
+        """
         if len(self.dealer) > 1 and self.hole_hidden:
-            self.running_count += E.hilo(E.card_value(self.dealer[1]["rank"]))
+            if self.hole_shoe == self.shoe_id:
+                self.running_count += E.hilo(E.card_value(self.dealer[1]["rank"]))
         self.hole_hidden = False
 
     def resolve_naturals(self):

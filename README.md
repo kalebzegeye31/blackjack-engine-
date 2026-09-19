@@ -104,8 +104,9 @@ The same keys answer quiz questions.
 
 Plain accuracy is a bad measure of a card player. Most hands you are dealt are
 trivial — a hard 20, a hard 8 — and getting those right forever holds a number in
-the nineties while six cells you keep fluffing quietly cost you money. Worse, the
-number only goes up, so it stops telling you anything.
+the nineties while six cells you keep fluffing quietly cost you money. Worse, it
+goes numb: every easy hand you are dealt adds to the denominator, so after a few
+thousand decisions nothing you do moves it much either way.
 
 So there is a second number, **sharpness**. Every square of the chart carries a
 weight:
@@ -114,8 +115,9 @@ weight:
   times running and the weight decays towards a floor; miss it and it springs back.
   Recent results count for far more than old ones.
 - **cost** — how much expected value your mistakes on that square actually give
-  away. Misplaying 16 against a 10 costs almost nothing; missing a double on 11
-  costs a lot. Expensive squares weigh double.
+  away. Misplaying 16 against a 10 costs 0.0006 of a bet; missing the double on 11
+  against a 6 costs 0.3337, five hundred times as much. A square weighs up to
+  double for this, and anything giving away 0.08 of a bet is already at the cap.
 - **exposure** — a square you have seen twice cannot swing the score. Weight ramps
   in as evidence accumulates.
 
@@ -205,8 +207,8 @@ of what remained recorded at each point the true count sat near an integer,
 those compositions averaged per count and handed to `engine.Odds` to find the
 exact true count at which each decision flips.
 
-Sixteen of the eighteen landed on the published value. Two — 12 v 3 and 11 v A —
-came out half a point away, which is to say the expected value either side is
+Sixteen of the eighteen rounded to the published value. Two — 12 v 3 and 11 v A —
+came out more than half a point away, which is to say the expected value either side is
 near enough identical that the rounding could fall either way. The published
 value is used for both, and the derived crossing is stored next to every index
 and shown in the app, so it argues its case rather than asserting a number.
@@ -247,7 +249,7 @@ server.py    HTTP server and JSON API. Standard library only.
 engine.py    The maths. Pure functions, no state, no I/O.
 rules.py     The rule set, and the strategy chart that follows from it.
 game.py      One table for one session: shoe, seats, whose turn, the money.
-sim.py       A second, stripped table that deals 200,000 hands a second.
+sim.py       A second, stripped table that deals 300,000 hands a second.
 mastery.py   How well you actually know the chart.
 quiz.py      Questions, drawn from wherever your record is worst.
 count.py     Hi-Lo: the count, the Illustrious 18, and the bet ramp.
@@ -331,7 +333,7 @@ Not implemented: surrender, European no-hole-card, doubling for less.
   0.001 — smaller than the difference between six decks and infinite decks
 - The chart changes with the rules, and only in the cells it should
 
-`python3 test_game.py` — 49 checks that the table deals like a real one, including
+`python3 test_game.py` — 59 checks that the table deals like a real one, including
 every rule in the list above, and that every square of the chart has a written
 passage to go with it under every rule set.
 
@@ -339,11 +341,26 @@ passage to go with it under every rule set.
 from the previous version upgrades without losing a row, and that connections are
 handed back rather than leaked.
 
-`python3 validate.py` — the slow one, about 90 seconds (`--quick` for a tenth of it):
+`python3 test_count.py` — 109 checks: all eighteen indices re-derived, and both
+sides of every one of them shown to actually differ.
+
+`python3 test_mastery.py` — 53 checks on the score you judge yourself by: that a
+square you have mastered stops holding it up, that expensive mistakes weigh more
+than cheap ones, and that no named habit tells you to do something the chart
+does not.
+
+`python3 test_sim.py` — 73 checks on the fast table: the shoe, the dealer against
+the exact engine, the house edge, what each rule change costs, the swing of each
+bet ramp, and the ruin formula against the two cases with closed-form answers.
+
+`python3 validate.py` — the slow one, about a minute (`--quick` for a tenth of it):
 
 - Chart accuracy through the real game code comes out at exactly 100%
 - The two engines agree on the house edge to a fraction of a standard error
-- That figure matches the published −0.43%
+- That figure matches the published −0.43% — ten million hands, read −0.428%,
+  inside an absolute band rather than a tolerance in standard errors that grows
+  wide enough to accept anything when the sample is small
+- The swing per hand is the 1.14 the bankroll maths quotes (it measures 1.154)
 - Each rule change costs what it is supposed to cost, measured on matched shoes
   so the shuffle cancels out: hitting soft 17 −0.22%, no double after split −0.14%,
   6:5 blackjacks −1.36%

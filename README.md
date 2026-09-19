@@ -317,7 +317,18 @@ The rules that are easy to get subtly wrong and impossible to notice afterwards:
 - **The dealer doesn't draw** when every hand you hold has busted — but the hole card
   is still turned over.
 - **The hole card isn't counted** while it's face down.
-- **The shoe reshuffles at the cut card**, between rounds, never mid-hand.
+- **The cut card goes in by eye.** A dealer does not measure, so it does not land
+  in the same place twice. The penetration setting is the aim; the yellow card
+  lands within about half a deck either side of it and moves every shoe, and it
+  is never placed closer than half a deck to the back. On the default six-deck
+  game that averages a deck and a half cut off — 75%, the usual instruction —
+  and runs anywhere from 67% to 83%, which is the span between a poor game and
+  a good one. A shoe that always stopped at the same card would let you work
+  the penetration out once and stop reading the tray.
+- **The shoe reshuffles at the cut card**, between rounds, never mid-hand. The
+  yellow card coming out is announced, the round in play is finished, and the
+  new shoe gets a screen of its own — the count is zero again and the cut card
+  is somewhere else, which is the one moment a counter cannot trade through.
 
 Configurable, because real tables differ: soft 17, double after split, re-splitting
 aces, how many hands you may split to, and whether a blackjack pays 3:2 or 6:5.
@@ -338,7 +349,7 @@ Not implemented: surrender, European no-hole-card, doubling for less.
   0.001 — smaller than the difference between six decks and infinite decks
 - The chart changes with the rules, and only in the cells it should
 
-`python3 test_game.py` — 65 checks that the table deals like a real one, including
+`python3 test_game.py` — 82 checks that the table deals like a real one, including
 every rule in the list above, and that every square of the chart has a written
 passage to go with it under every rule set.
 

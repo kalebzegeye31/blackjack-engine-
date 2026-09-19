@@ -145,6 +145,27 @@ class Sim:
         self.rng.shuffle(self.shoe)
         self.dealt = 0
         self.count = 0
+        self.cut_at = self.place_cut_card()
+
+    def place_cut_card(self):
+        """
+        Where the yellow card lands this shoe. Same rule as game.py.
+
+        A dealer puts it in by eye, so it moves from shoe to shoe: the aim is
+        the penetration setting, the spread is half a deck either way, and the
+        result is that no two shoes run to the same depth. It matters here as
+        well as at the table, because a ramp's value depends on how deep the
+        count is allowed to run before the shuffle takes it away.
+        """
+        total = self.decks * 52
+        aim = self.penetration * total
+        if self.penetration < 0.2:
+            return aim
+        lo = max(total * 0.40, aim - 26.0)
+        hi = min(total - 26.0, aim + 26.0)
+        if lo >= hi:
+            return max(1.0, min(aim, total - 1.0))
+        return self.rng.triangular(lo, hi, min(max(aim, lo), hi))
 
     def draw(self):
         if not self.shoe:
@@ -159,7 +180,7 @@ class Sim:
         return self.count / left
 
     def cut_card(self):
-        return self.dealt > self.penetration * self.decks * 52
+        return self.dealt >= self.cut_at
 
     # ---------------- one decision ----------------
     def decide(self, cards, up, can_double, can_split, error_rate, miss_rates):

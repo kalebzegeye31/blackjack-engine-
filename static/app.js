@@ -17,6 +17,7 @@ let TAB = "table";
 let PENDING_BET = 0;
 let BUY_IN = 0;
 let COUNT_RESULT = null;     // last count check, kept on screen until dismissed
+let ACKED_SHOE = -1;         // which shuffle the player has already been shown
 let QUIZ = null;             // live quiz state
 let QUIZ_SETUP = { mode: "weak", length: 10, sections: ["hard", "soft", "pair"],
                    upcards: [], only: "all" };
@@ -398,13 +399,44 @@ function trayBar() {
     '<span class="tray shoe" title="cards still to come"><i style="height:' +
       (shoe * 100).toFixed(1) + '%"></i></span>' +
     '<span class="tlab">SHOE</span>' +
-    '<span class="tray disc" title="cards already played"><i style="height:' +
+    '<span class="tray disc' + (S.cut_card_out ? " out" : "") +
+      '" title="cards already played"><i style="height:' +
       (frac * 100).toFixed(1) + '%"></i></span>' +
     '<span class="tlab">DISCARDS</span>' +
+    (S.cut_card_out ? '<span class="cutout" title="the yellow card is out and sitting ' +
+      'on the discards — the shoe is finished after this round">LAST HAND</span>' : "") +
     (S.decks_left != null
       ? '<span class="tnum">' + S.decks_left + " decks left</span>"
       : "") +
     "</span>";
+}
+
+/* The shuffle is the one moment a counter cannot trade through: whatever the
+   count was, it is zero again, and the new cut card is somewhere else. Real
+   tables make it obvious — the cards come out, the dealer spreads them, and you
+   decide whether to keep sitting. So it gets a screen rather than happening
+   quietly between two deals. */
+function newShoe() {
+  return '<div class="newshoe">' +
+    "<h3>New shoe</h3>" +
+    "<p>The yellow card came out, so that shoe is finished. " + S.config.decks +
+    " decks have been shuffled and the cut card has gone back in somewhere new — " +
+    "the dealer places it by eye, so it is not where it was last time.</p>" +
+    '<p class="fine">Whatever you were counting is worth nothing now. It starts again at zero, ' +
+    "and the only thing that tells you how deep this one runs is the tray filling up.</p>" +
+    '<div class="moves">' +
+    '<button class="mv go" onclick="ackShoe()">Play on</button>' +
+    '<button class="mv" onclick="standUp()">Stand up and cash out</button></div></div>';
+}
+
+function ackShoe() { ACKED_SHOE = (S.session || {}).shuffles; draw(); }
+
+function shoeUnseen() {
+  /* The shoe you sit down to is also fresh, but nothing ended to make it so —
+     announcing a new shoe before the first hand would be announcing the table
+     opening. Only a shuffle the session actually played through counts. */
+  const n = (S.session || {}).shuffles || 0;
+  return !!S.fresh_shoe && n > 0 && n !== ACKED_SHOE;
 }
 
 async function askCount() { await send("/api/count/ask", {}); const f = $("cans"); if (f) f.focus(); }
@@ -677,6 +709,8 @@ function drawTable() {
     h += '<div class="note bad"><b>You are below the table minimum.</b> The session is over ' +
       "— stand up, and earn the next buy-in on the Quiz tab.</div>" +
       '<button class="mv go" style="width:100%;margin-top:10px" onclick="standUp()">Stand up</button>';
+  } else if (S.phase === "bet" && shoeUnseen()) {
+    h += newShoe();
   } else if (S.phase === "bet") {
     const denoms = [5, 25, 50, 100].filter((v) => v <= S.bankroll);
     h += '<div class="tray">' +
@@ -2318,9 +2352,16 @@ function viewSetup() {
     '<div class="field"><label>DECKS IN THE SHOE</label>' +
     sel("s_decks", c.decks, [1, 2, 4, 6, 8].map((n) => [n, n + (n === 1 ? " deck" : " decks")])) + "</div>" +
     '<div class="field"><label>HOW DEEP THEY DEAL BEFORE RESHUFFLING</label>' +
-    sel("s_pen", c.penetration, [[0.5, "Half the shoe — shallow"],
-      [0.75, "Three quarters — typical"], [0.9, "Nearly all of it — deep"],
+    sel("s_pen", c.penetration, [[0.5, "Half the shoe — three decks off, punishing"],
+      [0.67, "Two thirds — two decks off, a poor game"],
+      [0.75, "Three quarters — a deck and a half off, the usual"],
+      [0.83, "Five of six — one deck off, a good game"],
+      [0.9, "Deeper still — rare, and worth travelling for"],
       [0.02, "Reshuffled every hand — a shuffling machine"]]) + "</div>" +
+    '<p class="fine" style="margin:-4px 0 12px">The dealer puts the yellow card in by eye, so ' +
+    "this is an aim rather than a mark: the real one lands within about half a deck either side " +
+    "of it and moves every shoe. That is why you read the discard tray instead of counting " +
+    "rounds.</p>" +
     "</div></div>" +
 
     '<div class="panel"><div class="phead"><h2>THE RULES</h2><em>these change the chart</em></div>' +

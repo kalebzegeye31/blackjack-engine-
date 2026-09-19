@@ -466,6 +466,80 @@ check("answering the check reveals the count",
 t.hide_count()
 check("and the next deal hides it again", not t.count_visible)
 
+# ---------------------------------------------------------------------------
+# The yellow card goes in by eye, so it does not land in the same place twice.
+# A shoe that always stopped at the same card would let a counter work the
+# penetration out once and stop reading the tray, which is the one skill the
+# whole hidden-count design exists to train.
+print("\nthe cut card is placed by eye, not by ruler")
+
+t = Table(config={"decks": 6, "others": 2, "table_min": 25, "penetration": 0.75},
+          bankroll=1e9)
+cuts = []
+for _ in range(4000):
+    t.shuffle()
+    cuts.append(t.cut_at)
+mean = sum(cuts) / len(cuts)
+spread = max(cuts) - min(cuts)
+check("it averages the penetration you asked for", abs(mean - 234.0) < 3.0,
+      "%.0f cards, %.2f decks cut off" % (mean, (312 - mean) / 52))
+check("but lands somewhere different nearly every shoe",
+      len({round(c) for c in cuts}) > 40, "%d distinct positions" % len({round(c) for c in cuts}))
+check("never shallower than two thirds", min(cuts) / 312 > 0.65, "%.3f" % (min(cuts) / 312))
+check("never deeper than half a deck from the back", max(cuts) <= 312 - 26,
+      "%.0f cards" % max(cuts))
+check("the spread is about a deck end to end", 40 < spread <= 52, "%.0f cards" % spread)
+
+# The deepest aims land short of what was asked, and should: the back of the
+# shoe stops the jitter before it does, because no dealer cuts to the last card.
+for pen, want in ((0.67, 209.0), (0.83, 259.0), (0.90, 273.9)):
+    t.config["penetration"] = pen
+    got = sum((t.shuffle() or t.cut_at) for _ in range(3000)) / 3000.0
+    check("an aim of %.0f%% averages %.0f%%" % (100 * pen, 100 * got / 312),
+          abs(got - want) < 6.0, "%.0f cards" % got)
+check("a very deep aim is pulled back by the end of the shoe, not granted in full",
+      want > 0 and got < 0.90 * 312, "%.0f cards, asked for %.0f" % (got, 0.90 * 312))
+
+t.config["penetration"] = 0.02
+fixed = {round((t.shuffle() or t.cut_at), 3) for _ in range(50)}
+check("a shuffling machine has no cut card to misplace", len(fixed) == 1, str(fixed))
+
+# and the shoe has to announce itself when it turns over
+print("\nthe shoe announces itself when it ends")
+t = Table(config={"decks": 6, "others": 3, "table_min": 25, "penetration": 0.75},
+          bankroll=1e9)
+check("sitting down is not a shoe ending", t.session["shuffles"] == 0 and t.fresh_shoe)
+saw_cut = saw_fresh = mid_hand = 0
+for _ in range(600):
+    t.new_round()
+    snap = t.snapshot()
+    if snap["fresh_shoe"] and t.session["shuffles"] > 0:
+        saw_fresh += 1
+        check("  the count is back to zero on a new shoe", t.running_count == 0) if saw_fresh == 1 else None
+    t.place_bet(25)
+    if t.phase == "insurance":
+        t.insurance(False)
+    guard = 0
+    while t.phase == "play":
+        hand = t.hands[t.active]
+        play = E.chart_play(hand["cards"], E.card_value(t.dealer[0]["rank"]),
+                            t.can_double(hand), t.can_split(hand), t.rules)
+        if t.cut_card_out and t.phase == "play":
+            mid_hand += 1
+        t.act(play["move"])
+        guard += 1
+        assert guard < 60
+    if t.cut_card_out:
+        saw_cut += 1
+check("the yellow card comes out and gets seen", saw_cut > 0, "%d rounds" % saw_cut)
+check("the shoe turns over more than once in 600 rounds", saw_fresh > 5,
+      "%d shuffles announced" % saw_fresh)
+check("a round that reaches the cut card is still played out",
+      mid_hand > 0, "%d decisions taken after it appeared" % mid_hand)
+check("the tray is empty again on the new shoe", t.snapshot()["tray"]["total"] == 312)
+check("and the browser is never told where the card is",
+      "cut_at" not in t.snapshot() and "cut_card_out" in t.snapshot())
+
 print("\n%d passed, %d failed" % (len(PASS), len(FAIL)))
 if FAIL:
     for f in FAIL:

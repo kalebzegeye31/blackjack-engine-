@@ -115,14 +115,44 @@ class Table:
         self.shoe = fresh_shoe(self.config["decks"])
         self.dealt = 0
         self.running_count = 0
+        self.cut_at = self.place_cut_card()
+        self.cut_card_out = False
+        self.fresh_shoe = True
         # Which shoe this is. The hole card is dealt face down and only joins the
         # count when it is turned over, and a reshuffle can land in between — see
         # reveal(), which would otherwise fold a card from the old shoe into the
         # fresh count and mark the player wrong for the rest of it.
         self.shoe_id = getattr(self, "shoe_id", 0) + 1
 
+    def place_cut_card(self):
+        """
+        Where the yellow card goes, counted in cards from the front.
+
+        A dealer slides it in by eye. Nobody measures, and the same dealer does
+        not land in the same place twice, which is exactly why you read the
+        discard tray instead of counting rounds: a shoe that always stopped at
+        the same card would let you work the penetration out once and never
+        look at the tray again.
+
+        The house aim is the penetration setting. On a six-deck game the usual
+        instruction is a deck and a half off the back — 4.5 of 6 dealt, the 75%
+        this defaults to. Good games cut one deck (83%), poor ones two (67%).
+        Around that aim the card lands anywhere within half a deck either way,
+        most often near the aim, and never so deep that fewer than half a deck
+        is left behind it.
+        """
+        total = self.config["decks"] * 52
+        aim = self.config["penetration"] * total
+        if self.config["penetration"] < 0.2:
+            return aim                      # a shuffling machine has no cut card
+        lo = max(total * 0.40, aim - 26.0)
+        hi = min(total - 26.0, aim + 26.0)
+        if lo >= hi:
+            return max(1.0, min(aim, total - 1.0))
+        return random.triangular(lo, hi, min(max(aim, lo), hi))
+
     def needs_shuffle(self):
-        return self.dealt > self.config["penetration"] * self.config["decks"] * 52
+        return self.dealt >= self.cut_at
 
     def draw(self, counted=True):
         if len(self.shoe) < MIN_CARDS:
@@ -132,6 +162,11 @@ class Table:
             self.session["shuffles"] += 1
         card = self.shoe.pop()
         self.dealt += 1
+        if self.dealt >= self.cut_at:
+            # At a table this is the moment the yellow card slides out and the
+            # dealer says so. The round in play is finished first; the shuffle
+            # comes after it, never in the middle of a hand.
+            self.cut_card_out = True
         if counted:
             self.running_count += E.hilo(E.card_value(card["rank"]))
         return card
@@ -308,6 +343,7 @@ class Table:
         return self.last_bet_check
 
     def deal(self):
+        self.fresh_shoe = False       # this shoe has now been played from
         self.seats = [{"cards": [], "total": 0, "bust": False}
                       for _ in range(self.config["others"])]
         self.hands = []
@@ -805,6 +841,10 @@ class Table:
             # were. Sent so the tray can be drawn, not so a number can be
             # printed - judging the depth by eye is the whole exercise.
             "tray": {"dealt": self.dealt, "total": self.config["decks"] * 52},
+            # That the yellow card is out, never where it sits. Knowing the
+            # position would turn the tray back into a readout.
+            "cut_card_out": self.cut_card_out,
+            "fresh_shoe": self.fresh_shoe,
             "decks_left": (round(self.decks_left(), 2)
                            if self.config["show_decks_left"] else None),
             "shoe_used": (round(self.dealt / (self.config["decks"] * 52), 3)

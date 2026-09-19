@@ -4082,7 +4082,8 @@ GLOSSARY = [
      "long": "A running count of +6 means very different things with one deck left versus five. "
              "Dividing fixes that. As a rule of thumb, each point of true count above +1 is worth "
              "about half a percent of edge.",
-     "example": "Running count +6 with 3 decks left is a true count of +2, or roughly a 0.5% edge."},
+     "example": "Running count +6 with 3 decks left is a true count of +2, which is roughly "
+                "break-even. It takes +3 before you are actually ahead."},
     {"term": "discard tray", "group": "Counting and the shoe",
      "short": "The stack of played cards, and the only clue to how deep the shoe is.",
      "long": "No table tells you how many decks are left. You look at the pile of dealt cards "

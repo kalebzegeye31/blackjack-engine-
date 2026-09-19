@@ -501,7 +501,10 @@ table.chart td.k3{box-shadow:inset 0 0 0 2px var(--good)}
    banding where hands were pushed in together, and a soft top light so the
    uppermost card catches the lamp. */
 .shoebar .trays{display:flex;align-items:flex-end;gap:11px;padding-bottom:1px}
-.shoebar .tray{width:40px;height:62px;position:relative;display:block;
+/* Tall enough that a deck is a visible step rather than a rounding error. Six
+   decks across an 80px well is about thirteen pixels each, which is roughly
+   what the difference between two and three decks looks like across a table. */
+.shoebar .tray{width:42px;height:90px;position:relative;display:block;
   border-radius:3px 3px 5px 5px}
 
 /* the moulded body of each piece */
@@ -523,7 +526,10 @@ table.chart td.k3{box-shadow:inset 0 0 0 2px var(--good)}
 
 /* the shoe: cards stand on edge and the whole thing leans, the way one does
    sitting on the dealer's right */
-.shoebar .tray.shoe{transform:perspective(90px) rotateY(-11deg)}
+/* It leans, but only a little: the quickest read in the game is the two stacks
+   against each other — level means half the shoe is gone — and a steep angle
+   foreshortens one of them and breaks that comparison. */
+.shoebar .tray.shoe{transform:perspective(190px) rotateY(-7deg)}
 .shoebar .tray.shoe i{background-image:
   linear-gradient(to top,transparent 0 78%,rgba(255,255,255,.3) 100%),
   repeating-linear-gradient(to top,rgba(0,0,0,.30) 0 .5px,transparent .5px 2px),
@@ -541,10 +547,24 @@ table.chart td.k3{box-shadow:inset 0 0 0 2px var(--good)}
   repeating-linear-gradient(to top,rgba(0,0,0,.34) 0 .5px,transparent .5px 1.9px),
   repeating-linear-gradient(to top,rgba(0,0,0,.17) 0 1px,transparent 1px 12px);
   background-color:#cdc6b6;filter:saturate(.4) brightness(.94)}
-/* the lip of the holder, in front of the cards */
-.shoebar .tray.disc::after{content:"";position:absolute;left:0;right:0;top:0;height:7px;
-  border-radius:3px 3px 0 0;
-  background:linear-gradient(to bottom,rgba(0,0,0,.5),transparent)}
+/* the lip of the holder, moulded into the body */
+.shoebar .tray.disc::before{background:
+  linear-gradient(to bottom,rgba(0,0,0,.55) 0,transparent 8px),
+  linear-gradient(103deg,rgba(255,255,255,.11) 0 11%,transparent 27%),
+  linear-gradient(152deg,#333d39,#1e2624 56%,#111716)}
+
+/* A moulding line at each deck up the wall. A real tray gives you a scale
+   whether it means to or not - you learn where a deck sits on it - and without
+   one the stack is a height with nothing to measure against.
+
+   It has to be measured on the well the cards sit in, not on the outside of
+   the holder, or every mark reads a few cards high and the scale quietly lies.
+   Six marks and no numbers: reading them is still the exercise. */
+.shoebar .tray.disc::after{content:"";position:absolute;left:0;right:0;top:5px;bottom:5px;
+  pointer-events:none;
+  background:repeating-linear-gradient(to top,
+    transparent 0 calc(100% / 6 - 1px),
+    rgba(255,255,255,.15) calc(100% / 6 - 1px) calc(100% / 6))}
 
 /* once the yellow card is out it sits on top of the discards, which is where
    the dealer drops it */

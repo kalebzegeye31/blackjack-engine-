@@ -18,6 +18,7 @@ let PENDING_BET = 0;
 let BUY_IN = 0;
 let COUNT_RESULT = null;     // last count check, kept on screen until dismissed
 let ACKED_SHOE = -1;         // which shuffle the player has already been shown
+const WELL = 5;              // inset of the card well inside the tray, matching style.css
 let QUIZ = null;             // live quiz state
 let QUIZ_SETUP = { mode: "weak", length: 10, sections: ["hard", "soft", "pair"],
                    upcards: [], only: "all" };
@@ -395,13 +396,16 @@ function trayBar() {
   const t = S.tray || { dealt: 0, total: 312 };
   const frac = Math.max(0, Math.min(1, t.dealt / (t.total || 1)));
   const shoe = 1 - frac;
+  /* The stack sits in a well inset from the walls of the holder, so its height
+     is a fraction of that well and not of the whole box. Scaling it by the box
+     made a full shoe stand 5px proud of its own tray and squashed the top deck
+     into nothing — the one part of the range you most need to read straight. */
+  const fill = (f) => "height:calc((100% - " + (WELL * 2) + "px) * " + f.toFixed(4) + ")";
   return '<span class="trays">' +
-    '<span class="tray shoe" title="cards still to come"><i style="height:' +
-      (shoe * 100).toFixed(1) + '%"></i></span>' +
+    '<span class="tray shoe" title="cards still to come"><i style="' + fill(shoe) + '"></i></span>' +
     '<span class="tlab">SHOE</span>' +
     '<span class="tray disc' + (S.cut_card_out ? " out" : "") +
-      '" title="cards already played"><i style="height:' +
-      (frac * 100).toFixed(1) + '%"></i></span>' +
+      '" title="cards already played"><i style="' + fill(frac) + '"></i></span>' +
     '<span class="tlab">DISCARDS</span>' +
     (S.cut_card_out ? '<span class="cutout" title="the yellow card is out and sitting ' +
       'on the discards — the shoe is finished after this round">LAST HAND</span>' : "") +

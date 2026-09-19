@@ -214,6 +214,11 @@ def full_stats(account_id):
         "drill": prof.drill(14),
         "leaks": prof.leaks(),
         "misses": db.recent_misses(account_id, 20),
+        "counting": {
+            "checks": db.count_record(account_id),
+            "indices": db.index_record(account_id),
+            "plays": C.ILLUSTRIOUS_18,
+        },
     }
 
 
@@ -226,7 +231,7 @@ def start_quiz(account_id, data):
     cfg = dict(Table(config=acct["config"]).config)
     rset = R.normalise(cfg)
     mode = str(data.get("mode") or "weak")
-    if mode not in Q.MODES:
+    if mode not in Q.ALL_MODES:
         mode = "weak"
     for_chips = mode == "chips"
     length = Q.CHIPS_QUESTIONS if for_chips else max(5, min(30, int(data.get("length") or 10)))
@@ -234,20 +239,28 @@ def start_quiz(account_id, data):
     prof = profile_for(account_id, rset)
     missed = [m["cell"] for m in db.recent_misses(account_id, 40)]
     rng = random.Random()
-    cells = Q.select_cells(mode, length, rset, prof, data.get("filters"), rng, missed)
-    questions = [Q.build(s, r, u, rset, rng, i) for i, (s, r, u) in enumerate(cells)]
+
+    if mode in Q.COUNT_MODES:
+        questions = Q.build_counting(mode, length, rset, rng)
+        title, blurb = Q.describe_counting(mode)
+    elif mode == "everything":
+        questions = Q.build_counting(mode, length, rset, rng)
+        title, blurb = Q.describe_counting(mode)
+    else:
+        cells = Q.select_cells(mode, length, rset, prof, data.get("filters"), rng, missed)
+        questions = [Q.build(s, r, u, rset, rng, i) for i, (s, r, u) in enumerate(cells)]
+        title, blurb = Q.describe(mode)
     if not questions:
         return {"error": "nothing to ask about"}
 
     quiz_id = db.start_quiz(account_id, mode, data.get("filters") or {}, questions, for_chips)
-    title, blurb = Q.describe(mode)
     return {
         "quiz": quiz_id, "mode": mode, "title": title, "blurb": blurb,
         "length": len(questions), "for_chips": for_chips,
         "reward": Q.CHIPS_PER_CORRECT if for_chips else 0,
         "index": 0, "answered": 0, "correct": 0,
         "question": Q.public(questions[0]),
-        "legal": Q.legal_moves(questions[0]),
+        "legal": Q.any_legal(questions[0]),
     }
 
 
@@ -268,11 +281,27 @@ def answer_quiz(account_id, data):
     cfg = dict(Table(config=acct["config"]).config)
     rset = R.normalise(cfg)
     question = questions[idx]
-    move = str(data.get("move", "")).upper()
-    if move not in Q.legal_moves(question):
-        return {"error": "that is not one of the options"}
+    kind = question.get("kind", "play")
+    raw = data.get("move")
 
-    result = Q.grade(question, move, rset, cfg["decks"])
+    if kind in ("running", "true"):
+        # a typed number; the parsing and the tolerance both live in quiz.py
+        move = str(raw).strip()
+        if move == "" or move.lower() == "none":
+            return {"error": "type a number"}
+    elif kind == "insurance":
+        move = str(raw or "").lower()
+        if move not in ("take", "decline"):
+            return {"error": "that is not one of the options"}
+    else:
+        move = str(raw or "").upper()
+        if move not in Q.legal_moves(question):
+            return {"error": "that is not one of the options"}
+
+    if kind in ("running", "true", "insurance"):
+        result = Q.grade_counting(question, move, rset, cfg["decks"])
+    else:
+        result = Q.grade(question, move, rset, cfg["decks"])
     question["chose"] = move
     question["correct"] = bool(result["correct"])
     question["cost"] = result["cost"]
@@ -280,10 +309,16 @@ def answer_quiz(account_id, data):
     answered = idx + 1
     correct = row["correct"] + (1 if result["correct"] else 0)
     db.save_quiz(quiz_id, questions, answered, correct)
-    # quiz answers count towards how well you know the chart, same as real hands
-    db.log_decision(account_id, None, question["cell"], move, result["answer"],
-                    result["correct"], result["correct"], result["cost"], 0.0,
-                    source="quiz")
+    # Quiz answers count towards how well you know the chart, same as real hands -
+    # but only the ones that are about a square. A running count drill has no cell
+    # behind it, and logging it would corrupt the per-square record the Chart tab
+    # and the weak-spot picker are both built on.
+    if kind in ("play", "index"):
+        db.log_decision(account_id, None, question["cell"], move, str(result["answer"]),
+                        result["correct"], result["correct"], result["cost"], 0.0,
+                        source="quiz",
+                        index_key=question.get("index_key"),
+                        count_correct=result["correct"] if kind == "index" else None)
 
     out = {
         "quiz": quiz_id, "mode": row["mode"], "length": len(questions),
@@ -295,7 +330,7 @@ def answer_quiz(account_id, data):
     if answered < len(questions):
         nxt = questions[answered]
         out["question"] = Q.public(nxt)
-        out["legal"] = Q.legal_moves(nxt)
+        out["legal"] = Q.any_legal(nxt)
         out["index"] = answered
     else:
         earned = correct * Q.CHIPS_PER_CORRECT if row["for_chips"] else 0.0

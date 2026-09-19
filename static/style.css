@@ -508,3 +508,26 @@ table.chart td.k3{box-shadow:inset 0 0 0 2px var(--good)}
   text-align:center}
 .rec b{display:block;font-size:17px}
 .rec span{font-size:10px;letter-spacing:.08em;color:var(--muted)}
+
+/* ---------------- counting questions in the quiz ---------------- */
+.qcount{text-align:center;padding:10px 0 4px}
+.qbig{font-size:40px;font-weight:700;line-height:1;color:var(--brass);margin-top:5px}
+.qcount .pairq{display:flex;justify-content:center;gap:46px}
+.hand-row.qrun{flex-wrap:wrap;gap:5px;margin-top:8px}
+.qnum{display:flex;align-items:center;gap:9px;margin-top:20px;flex-wrap:wrap;
+  justify-content:center}
+.qnum label{font-size:11.5px;letter-spacing:.06em;color:var(--muted);width:100%;
+  text-align:center;margin-bottom:2px}
+.qnum input{width:110px;font:inherit;font-size:20px;font-weight:600;text-align:center;
+  background:rgba(0,0,0,.4);border:1px solid rgba(201,169,97,.45);color:var(--bone);
+  border-radius:5px;padding:8px 6px}
+.qnum .mv{min-width:110px}
+.qtc{text-align:center;font-size:11px;letter-spacing:.12em;color:var(--muted);
+  margin-bottom:10px}
+.qtc b{color:var(--brass);font-size:15px;margin-left:5px;letter-spacing:0}
+
+/* the bet ramp, shown on the Betting tab when the count is hidden */
+.ramp{display:grid;grid-template-columns:repeat(auto-fit,minmax(62px,1fr));gap:3px;margin:10px 0 4px}
+.ramp .rr{background:rgba(0,0,0,.24);border-radius:4px;padding:5px 4px;text-align:center}
+.ramp .rr span{display:block;font-size:9.5px;letter-spacing:.06em;color:var(--muted)}
+.ramp .rr b{font-size:12px;color:var(--brass)}

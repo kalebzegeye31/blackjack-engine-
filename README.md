@@ -59,18 +59,34 @@ low, how you are playing, and your all-time records next to it.
 raising after a loss, betting too much of what you have, and playing a table
 that's too expensive for your bankroll.
 
-**Chart** — the full basic strategy chart, hard totals, soft totals and pairs, and below it the index chart: the squares where the count moves the answer, the true count at which each one moves, and the order worth learning them in.
+**Chart** — the full basic strategy chart, hard totals, soft totals and pairs, and
+below it the index chart: the squares where the count moves the answer, the true
+count at which each one moves, and the order worth learning them in. Hard 17+ and
+8− are single rows, because nothing in either band varies under any rule set.
 Click any square for what it means and your own record on it. It redraws itself
 for whatever rules you have set, and your decisions are graded against the same
 grid, so the two can never disagree.
 
-**Quiz** — the chart without the waiting. Drill your weak spots, the hands you
-have actually got wrong, the rare corners you never get dealt, or build your own
-filter. Or play for chips.
+**Quiz** — the chart without the waiting, and now the counting too. Drill your
+weak spots, the hands you have actually got wrong, the rare corners you never get
+dealt, or build your own filter. Three counting modes sit alongside them: **the
+index plays**, asked from both sides of the index so the answer is never the one
+you expected; **keeping the count**, which is running counts, true counts and
+insurance; and **everything**, which mixes all of it together, since that is the
+only way any of it arrives at a table. Or play for chips.
 
-**Analysis** — four things: how well you play and what it costs per hour, a
-simulator that runs the game hundreds of times so you can see the spread rather
-than the average, a bankroll calculator, and the all-time ledger.
+Chart and index questions count towards how well the app thinks you know the
+chart. Running and true count drills do not — they have no square behind them,
+and logging them would corrupt the per-square record everything else is built on.
+
+**Analysis** — how well you play and what it costs per hour, how the counting is
+going, a simulator that runs the game hundreds of times so you can see the spread
+rather than the average, a bankroll calculator, and the all-time ledger.
+
+The counting is reported as three separate things, because they fail for
+different reasons: keeping the running count is arithmetic, judging the discard
+tray is a guess, and the index plays are memory. One number would hide which of
+them is letting you down.
 
 **Account** — who you are, the ledger, what you keep missing, and a straight
 assessment of where you stand. Log out here.

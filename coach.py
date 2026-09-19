@@ -4060,7 +4060,8 @@ GLOSSARY = [
      "long": "It exists specifically to make counting impossible. With one in play the composition "
              "never drifts, the count never means anything, and no strategy beyond basic strategy "
              "has any value at all. Your correct plays don't change \u2014 but your ceiling does.",
-     "example": "Set penetration to 'continuous shuffler' in Setup and watch the count stop moving."},
+     "example": "Set the reshuffling option in Setup to a shuffling machine, and the count stops "
+                "being worth keeping at all."},
     {"term": "running count", "group": "Counting and the shoe",
      "short": "A tally of the cards dealt so far: low cards +1, middles 0, high cards \u22121.",
      "long": "The idea is that tens and aces left in the shoe are good for you \u2014 they make "
@@ -4073,12 +4074,41 @@ GLOSSARY = [
              "Dividing fixes that. As a rule of thumb, each point of true count above +1 is worth "
              "about half a percent of edge.",
      "example": "Running count +6 with 3 decks left is a true count of +2, or roughly a 0.5% edge."},
+    {"term": "discard tray", "group": "Counting and the shoe",
+     "short": "The stack of played cards, and the only clue to how deep the shoe is.",
+     "long": "No table tells you how many decks are left. You look at the pile of dealt cards "
+             "and judge it, then divide your running count by that guess. It is half of "
+             "counting and the half nobody practises \u2014 an estimate a deck out turns a "
+             "perfectly kept count into the wrong true count, silently.",
+     "example": "Three decks left judged as one turns a running count of +6 into a believed "
+                "true count of +6, when it is really +2."},
+    {"term": "index play", "group": "Counting and the shoe",
+     "short": "A square where a big enough count changes the right move.",
+     "long": "Basic strategy is worked out for a fresh shoe. As the shoe drifts, a handful of "
+             "squares flip, and each one has a true count at which it does \u2014 its index. "
+             "Above the index you deviate; below it you play the chart. The Chart tab lists "
+             "every one with the number.",
+     "example": "16 against a 10 has an index of 0: stand at zero or above, hit below it."},
+    {"term": "illustrious 18", "group": "Counting and the shoe",
+     "short": "The eighteen index plays worth almost all of the value.",
+     "long": "There are far more than eighteen squares a count can move, but the returns fall "
+             "off a cliff. These eighteen carry nearly all of it, insurance most of all, and "
+             "they are chosen for value per unit of memory rather than completeness.",
+     "example": "The first six are worth more than the remaining twelve put together."},
+    {"term": "bet spread", "group": "The money",
+     "short": "The gap between your smallest bet and your largest.",
+     "long": "Where a counter's money actually comes from. Playing the index plays perfectly "
+             "and betting flat earns close to nothing; the edge only exists on the hands where "
+             "the count is high, so you have to have more out on those. It is also the single "
+             "easiest thing for a casino to notice.",
+     "example": "A 1-to-8 spread means betting one unit at a dead count and eight at a good one."},
     {"term": "composition", "group": "Counting and the shoe",
      "short": "Exactly which cards are still unseen, and how many of each.",
      "long": "This app computes every probability from the actual composition rather than from a "
              "printed table, which is why the numbers shift as a shoe gets used. It's the exact "
              "version of what counting approximates.",
-     "example": "The Table tab shows the live composition in step 1 of the explanation."},
+     "example": "The Table tab shows the live composition in step 1 of the working, once you "
+                "have played the hand."},
 
     # --- strategy
     {"term": "basic strategy", "group": "Strategy",

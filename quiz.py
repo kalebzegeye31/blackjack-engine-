@@ -166,10 +166,21 @@ def build(section, row, up, rules, rng=None, index=0):
     }
 
 
+#: never sent to the browser before an answer is committed
+_SECRET = ("answer", "code", "chart_answer", "index_at")
+
+
 def public(question):
-    """The question with the answer stripped out."""
-    return {k: v for k, v in question.items()
-            if k not in ("answer", "code")}
+    """
+    The question with everything that gives it away stripped out.
+
+    More than just `answer`: an index question that shipped its index number
+    would be asking you to compare two numbers it had already handed you, and
+    one that shipped the chart move would give away half of it. The starting
+    count of a running-count question does go out, because without it there is
+    nothing to add the cards to.
+    """
+    return {k: v for k, v in question.items() if k not in _SECRET}
 
 
 # ---------------------------------------------------------------------------
@@ -264,3 +275,267 @@ DESCRIPTIONS = {
 
 def describe(mode):
     return DESCRIPTIONS.get(mode, DESCRIPTIONS["weak"])
+
+
+# ---------------------------------------------------------------------------
+# Counting questions
+#
+# The chart questions above ask what to do with a hand. These ask the three
+# other things a counter has to be able to do under pressure: keep the running
+# count, turn it into a true count, and know which squares it moves.
+#
+# They share the same question/grade shape as the chart questions, with a
+# `kind` to say which is which, so the quiz can mix all of them together.
+# ---------------------------------------------------------------------------
+
+import count as C
+
+def _sgn(n, places=0):
+    """Signed number with a real minus sign, matching the rest of the app."""
+    fmt = "%%.%df" % places
+    body = fmt % abs(n)
+    if float(body) == 0:
+        return body if places else "0"
+    return ("+" if n > 0 else "\u2212") + body
+
+
+COUNT_MODES = ("counting", "deviations", "everything")
+ALL_MODES = MODES + COUNT_MODES
+
+#: how far out a true count answer may be before it is wrong
+TC_TOLERANCE = 0.5
+
+
+def build_running(rules, rng, index=0, length=None):
+    """
+    A row of cards. What is the running count after them?
+
+    Deliberately includes the middle cards, which are worth nothing. Learning to
+    skip a 7, 8 or 9 without thinking is most of what makes a count fast enough
+    to keep at a real table.
+    """
+    n = length or rng.choice([5, 6, 7, 8, 10, 12])
+    cards = [_card(rng.choice(E.RANKS), rng) for _ in range(n)]
+    start = rng.choice([0, 0, 0, 2, -2, 4, -3, 5, -6])
+    running = start + sum(C.tag(E.card_value(c["rank"])) for c in cards)
+    return {
+        "kind": "running", "index": index,
+        "cards": cards, "start": start,
+        "answer": running,
+        "cell": "running count",
+    }
+
+
+def build_true(rules, rng, index=0):
+    """
+    A running count and a shoe depth. What is the true count?
+
+    The decks remaining are given here rather than eyeballed, because this
+    question is about the division. Judging the tray is practised at the table,
+    where there is a tray to judge.
+    """
+    decks = int(rules.get("decks", 6))
+    running = rng.choice([-12, -8, -6, -4, -3, -2, 2, 3, 4, 6, 8, 10, 12, 15])
+    left = rng.choice([0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0])
+    left = min(left, float(decks))
+    return {
+        "kind": "true", "index": index,
+        "running": running, "decks_left": left,
+        "answer": round(running / left, 2),
+        "cell": "true count",
+    }
+
+
+def build_insurance(rules, rng, index=0):
+    """Take it or leave it, at a true count either side of the index."""
+    entry = C.BY_KEY["insurance"]
+    tc = rng.choice([-2, -1, 0, 1, 2, 2.5, 3, 3.5, 4, 5, 6])
+    tc = float(tc) + rng.choice([0.0, 0.0, 0.3, -0.3])
+    take, _ = C.insurance_play(tc)
+    return {
+        "kind": "insurance", "index": index,
+        "true_count": round(tc, 1),
+        "answer": "take" if take else "decline",
+        "index_key": "insurance", "index_at": entry["index"],
+        "cell": "insurance",
+    }
+
+
+def build_index(rules, rng, index=0, entry=None):
+    """
+    A hand, an upcard, and a true count. What does a counter do?
+
+    Half the time the count is placed on the deviating side of the index and
+    half on the chart's side, so the answer cannot be guessed from the fact
+    that the question was asked at all.
+    """
+    plays = [p for p in C.ILLUSTRIOUS_18 if p["kind"] != "insurance"]
+    entry = entry or rng.choice(plays)
+    section = "pair" if entry["kind"] == "pair" else "hard"
+    row = entry["pair"] if entry["kind"] == "pair" else entry["total"]
+    up = entry["up"]
+
+    # land either side of the index, with a little margin so it is never a
+    # question about rounding
+    deviate = rng.random() < 0.5
+    idx = entry["index"]
+    tc = (idx + rng.choice([0.0, 0.5, 1.0, 2.0])) if deviate else (idx - rng.choice([0.5, 1.0, 2.0]))
+
+    q = build(section, row, up, rules, rng, index)
+    chart_move = q["answer"]
+    move, _, _ = C.correct_move(chart_move, section, q["total"], 
+                                row if section == "pair" else None, up, tc,
+                                can_split=q["can_split"], can_double=q["can_double"])
+    q.update({
+        "kind": "index",
+        "true_count": round(tc, 1),
+        "answer": move,
+        "chart_answer": chart_move,
+        "index_key": entry["key"], "index_at": idx,
+    })
+    return q
+
+
+def build_counting(mode, count, rules, rng):
+    """A mixed set of counting questions."""
+    out = []
+    if mode == "counting":
+        kinds = ["running", "true", "insurance"]
+    elif mode == "deviations":
+        kinds = ["index", "index", "index", "insurance"]
+    else:
+        kinds = ["index", "running", "true", "insurance"]
+    for i in range(count):
+        k = kinds[i % len(kinds)] if mode != "everything" else rng.choice(kinds)
+        if k == "running":
+            out.append(build_running(rules, rng, i))
+        elif k == "true":
+            out.append(build_true(rules, rng, i))
+        elif k == "insurance":
+            out.append(build_insurance(rules, rng, i))
+        else:
+            out.append(build_index(rules, rng, i))
+    return out
+
+
+def grade_counting(question, given, rules, decks=6):
+    """Mark a counting question. Numeric ones are parsed here, not in the browser."""
+    kind = question["kind"]
+
+    if kind == "running":
+        try:
+            said = int(str(given).strip().lstrip("+"))
+        except (TypeError, ValueError):
+            said = None
+        actual = question["answer"]
+        ok = said == actual
+        tags = ", ".join("%s %s" % (c["rank"], _sgn(C.tag(E.card_value(c["rank"]))))
+                         for c in question["cards"])
+        return {
+            "correct": ok, "chose": given, "answer": actual, "cell": "running count",
+            "cost": 0.0,
+            "detail": "Started at %s. %s. That is %s."
+                      % (_sgn(question["start"]), tags, _sgn(actual)),
+            "explanation": {
+                "hook": "Running count %s." % _sgn(actual),
+                "paragraphs": [
+                    "Low cards 2 through 6 are each +1, the middles 7, 8 and 9 are nothing at "
+                    "all, and every ten and ace is −1. Add them as they land and never "
+                    "recompute from scratch.",
+                    "Skipping the middles without pausing is most of what makes a count fast "
+                    "enough to keep while a dealer is moving.",
+                ],
+                "picture": "The count is a single number you carry, not a sum you rebuild.",
+                "remember": "2-6 up one, 7-9 nothing, tens and aces down one.",
+                "terms": ["running count", "true count"],
+            },
+        }
+
+    if kind == "true":
+        try:
+            said = float(str(given).strip().lstrip("+"))
+        except (TypeError, ValueError):
+            said = None
+        actual = question["answer"]
+        ok = said is not None and abs(said - actual) <= TC_TOLERANCE
+        return {
+            "correct": ok, "chose": given, "answer": actual, "cell": "true count",
+            "cost": 0.0,
+            "detail": "%s divided by %g decks is %s."
+                      % (_sgn(question["running"]), question["decks_left"], _sgn(actual, 1)),
+            "explanation": {
+                "hook": "True count %s." % _sgn(actual, 1),
+                "paragraphs": [
+                    "Running count divided by the decks still to come. A running count of %s "
+                    "with %g decks left is %s, and that is the number every index and every "
+                    "bet decision is expressed in."
+                    % (_sgn(question["running"]), question["decks_left"], _sgn(actual, 1)),
+                    "Anything within half a point is fine. At a real table you are dividing by "
+                    "an estimate anyway, so false precision is wasted effort.",
+                ],
+                "picture": "The same running count means completely different things at the "
+                           "start of a shoe and at the end of one. Dividing is what makes it "
+                           "mean one thing.",
+                "remember": "True count is the running count per deck remaining.",
+                "terms": ["true count", "running count"],
+            },
+        }
+
+    if kind == "insurance":
+        said = str(given).lower()
+        actual = question["answer"]
+        ok = said == actual
+        tc = question["true_count"]
+        return {
+            "correct": ok, "chose": given, "answer": actual, "cell": "insurance",
+            "cost": 0.0,
+            "detail": "True count %s, and the index is %s."
+                      % (_sgn(tc, 1), _sgn(question["index_at"])),
+            "explanation": dict(
+                coach.INSURANCE,
+                hook=("Insurance is on at %s." % _sgn(tc, 1)) if actual == "take"
+                     else ("Insurance stays off at %s." % _sgn(tc, 1)),
+                paragraphs=[
+                    "Insurance is a bet that the hole card is a ten. It pays two to one, so it "
+                    "needs to come in more than a third of the time to be worth anything.",
+                    ("At %s the shoe is ten-rich enough that it does. This is the one bet on "
+                     "the table a count turns from bad to good, and it is worth more than every "
+                     "playing deviation put together." % _sgn(tc, 1)) if actual == "take" else
+                    ("At %s it is not. The index is %s, and below that it is the worst bet "
+                     "on the table." % (_sgn(tc, 1), _sgn(question["index_at"]))),
+                ],
+                terms=["insurance", "true count", "hole card"],
+            ),
+        }
+
+    raise ValueError("not a counting question: %r" % kind)
+
+
+def counting_legal(question):
+    kind = question["kind"]
+    if kind == "insurance":
+        return ["take", "decline"]
+    if kind in ("running", "true"):
+        return []          # a typed number, not a button
+    return legal_moves(question)
+
+
+def describe_counting(mode):
+    return {
+        "counting": ("KEEPING THE COUNT",
+                     "Running counts, true counts and insurance. The arithmetic, "
+                     "drilled away from the table where there is time to be slow."),
+        "deviations": ("THE INDEX PLAYS",
+                       "The eighteen squares a count moves, asked from both sides of "
+                       "the index so the answer is never the one you expected."),
+        "everything": ("EVERYTHING",
+                       "Chart, counting and deviations mixed together, which is the "
+                       "only way they ever arrive at a table."),
+    }.get(mode, ("QUIZ", ""))
+
+
+def any_legal(question):
+    """Buttons for any question kind. An empty list means 'type a number'."""
+    if question.get("kind") in ("running", "true", "insurance"):
+        return counting_legal(question)
+    return legal_moves(question)

@@ -278,6 +278,31 @@ check("and nothing is flagged on the standard table",
       not any(R.rule_note(R.DEFAULT_RULES, s, r, u)
               for s, r, u, _ in R.cells_for(R.DEFAULT_RULES)))
 
+# ---------------------------------------------------------------------------
+# The Chart tab collapses hard 17-21 into one row and 5-8 into another, which is
+# only honest if those bands really are identical. If a rule set ever splits
+# one of them, the chart would be drawing a lie and this fails.
+# ---------------------------------------------------------------------------
+
+print("\nthe bands the chart collapses really are flat")
+import itertools
+split = []
+for h17, das, ra in itertools.product([False, True], repeat=3):
+    rset = R.normalise({"hit_soft_17": h17, "das": das, "resplit_aces": ra})
+    g = R.grid(rset)["hard"]
+    label = ("H17" if h17 else "S17") + ("/DAS" if das else "/noDAS")
+    for band, rows in (("17-21", range(17, 22)), ("5-8", range(5, 9))):
+        distinct = {tuple(g[r]) for r in rows}
+        if len(distinct) != 1:
+            split.append("%s %s" % (label, band))
+check("hard 17 through 21 is one row under every rule set",
+      not [x for x in split if "17-21" in x], "; ".join(x for x in split if "17-21" in x))
+check("hard 5 through 8 is one row under every rule set",
+      not [x for x in split if "5-8" in x], "; ".join(x for x in split if "5-8" in x))
+check("and 17+ is all stand, 8- is all hit",
+      set("".join("".join(R.grid(R.DEFAULT_RULES)["hard"][r]) for r in range(17, 22))) == {"S"}
+      and set("".join("".join(R.grid(R.DEFAULT_RULES)["hard"][r]) for r in range(5, 9))) == {"H"})
+
 print("\n%d passed, %d failed" % (len(PASS), len(FAIL)))
 if FAIL:
     for f in FAIL:

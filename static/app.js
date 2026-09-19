@@ -714,6 +714,22 @@ function wireTerms() {
    ======================================================================= */
 const step = (n, title, body) => '<div class="step"><h4><i>' + n + "</i>" + title + "</h4>" + body + "</div>";
 
+
+/* What to bet at each count, in units. Shown when the count is hidden, because
+   the ramp is the thing you can act on without being told where you are. */
+function rampTable(spread) {
+  const rows = [];
+  for (let t = 0; t <= 8; t++) {
+    const u = t < 1 ? 1 : Math.max(1, Math.min(spread, t - 1 + 1));
+    rows.push([t, u]);
+  }
+  return '<div class="ramp">' + rows.map(([t, u]) =>
+    '<div class="rr"><span>' + (t === 0 ? "≤ +0" : "+" + t) + "</span><b>" + u +
+    (u === 1 ? " unit" : " units") + "</b></div>").join("") + "</div>" +
+    '<p class="fine">Spread 1 to ' + spread + ", set in Setup. Below +1 you have no edge and " +
+    "the only correct bet is the smallest one the table allows.</p>";
+}
+
 function viewBetting() {
   if (S.phase === "idle") return emptyTab("betting",
     "Bet sizing is scored while you are playing. Sit down on the Table tab and it fills in.");
@@ -723,20 +739,39 @@ function viewBetting() {
   const names = { chase: "Raised the bet after losing", press: "Doubled up after winning",
     over: "Bet more than 15% of your money", big: "Bet more than 5% of your money",
     undercap: "Table is too expensive for your bankroll", watch: "Bet small on a good count" };
-  const tc = S.true_count, edge = -0.005 + 0.005 * Math.max(0, tc - 1);
+  /* The count is hidden unless you have earned it, so this tab cannot assume a
+     number. It used to read S.true_count straight out and render null as
+     "+0.0" — a count nobody had, and an edge computed from it. */
+  const known = S.true_count != null;
+  const tc = known ? S.true_count : null;
+  const edge = known ? -0.005 + 0.005 * Math.max(0, tc - 1) : null;
   const bankroll = S.bankroll || 1;
 
   $("wrap").innerHTML =
     '<div class="cols">' +
     '<div><div class="panel"><div class="phead"><h2>HOW MUCH TO PUT OUT</h2></div><div class="pbody">' +
     step(1, "Do you have any advantage right now?",
-      '<div class="eq">count per deck <b>' + (tc >= 0 ? "+" : "−") + Math.abs(tc).toFixed(1) + "</b><br>" +
-      'your edge ≈ <b class="' + (edge >= 0 ? "pos" : "neg") + '">' + (edge * 100).toFixed(2) +
-      "%</b> of every dollar</div><p>The rule of thumb: you start about half a percent behind, and each " +
+      (known
+        ? '<div class="eq">count per deck <b>' + (tc >= 0 ? "+" : "−") + Math.abs(tc).toFixed(1) + "</b><br>" +
+          'your edge ≈ <b class="' + (edge >= 0 ? "pos" : "neg") + '">' + (edge * 100).toFixed(2) +
+          "%</b> of every dollar</div>"
+        : '<div class="eq">count per deck <b>—</b><br>your edge ≈ <b>—</b></div>' +
+          '<p class="idle">The count is hidden, so this tab will not put a number here. ' +
+          "You are the one keeping it: work out your own true count, and the guidance below " +
+          "is in units so it applies to whatever you have. Press <b>REVEAL COUNT</b> on the " +
+          "Table tab if you want it checked.</p>") +
+      "<p>The rule of thumb: you start about half a percent behind, and each " +
       'point of <span class="gt" data-term="true count">count per deck</span> above +1 gives you back ' +
-      "roughly half a percent. Below that, you are a losing bettor no matter how well you play the cards.</p>") +
+      "roughly half a percent. Below that, you are a losing bettor no matter how well you play the cards.</p>" +
+      (known ? "" : rampTable(S.config.spread || 8))) +
     step(2, "So what size does that justify?",
-      edge > 0
+      !known
+        ? '<div class="eq">one unit is the table minimum, <b>' + money(S.config.table_min) +
+          "</b></div><p>Without the count on screen the honest answer is a ramp rather than a " +
+          "number: bet one unit until your count is genuinely positive, then roughly one unit " +
+          "per point above +1, up to your spread. The table above is that ramp at the spread " +
+          "you have set in <b>Setup</b>.</p>"
+        : edge > 0
         ? '<div class="eq">edge ÷ swing = ' + edge.toFixed(4) + " ÷ 1.30 = <b>" +
           pct(edge / 1.3, 2) + "</b> of your money<br>= <b>" + money(bankroll * (edge / 1.3)) + "</b></div>" +
           '<p>This is the <span class="gt" data-term="kelly">Kelly</span> size, which grows money fastest ' +
@@ -751,10 +786,14 @@ function viewBetting() {
       (b
         ? '<div class="kv"><span>Chance you double your money before losing it</span><b>' + pct(b.p_double) + "</b></div>" +
           '<div class="kv"><span>Chance you eventually lose it all if you keep playing</span><b>' +
-          (b.edge > 0 ? pct(b.p_ruin) : "100%") + "</b></div>"
+          (b.edge > 0 ? pct(b.p_ruin) : !known ? "—" : "100%") + "</b></div>"
         : '<p class="idle">Place a bet and these fill in.</p>') +
       "<p style=\"margin-top:8px\">" + (b && b.edge > 0
         ? "Having a real advantage is the only thing that makes going broke avoidable at all."
+        : !known
+        ? "Whether going broke is avoidable depends on whether you actually have an edge, which " +
+          "depends on the count you are keeping. Flat-betting without one, it is a certainty " +
+          "given enough hands."
         : 'With no advantage, going broke is not a risk — it is a certainty given enough hands. ' +
           'The only questions are how long it takes and whether you enjoyed it. That is what ' +
           '<span class="gt" data-term="risk of ruin">risk of ruin</span> means. The ' +
@@ -766,7 +805,9 @@ function viewBetting() {
     (b
       ? '<div class="two"><div><div class="big ' + (b.ok ? "up" : "down") + '">' +
         (b.ok ? "Fine" : "Too big") + '</div><div class="sub">verdict on the size</div></div>' +
-        '<div><div class="big">' + money(b.suggested) + '</div><div class="sub">what the maths supports</div></div></div>' +
+        '<div><div class="big">' + (b.suggested == null ? "—" : money(b.suggested)) +
+        '</div><div class="sub">' + (b.suggested == null ? "hidden with the count" : "what the maths supports") +
+        "</div></div></div>" +
         '<div class="bar2"><i class="' + (b.share > 0.15 ? "b" : b.share > 0.05 ? "w" : "") +
         '" style="width:' + Math.min(100, b.share * 400) + '%"></i></div>' +
         '<div class="kv"><span>Share of your money</span><b>' + pct(b.share, 1) + "</b></div>" +
@@ -826,10 +867,13 @@ async function viewChart() {
     ' onchange="CHART_OVERLAY=this.checked;draw()"> Shade by how often I get it right</label>' +
     "</div>" +
     secs.map(([key, title, blurb]) => chartSection(c, key, title, blurb)).join("") +
-    '<p class="fine">Read a row to your total and a column to the dealer’s upcard. Every square ' +
-    "here is checked against the odds computed from a full shoe — the chart is not typed in from " +
-    "a book, it is the play with the highest expected value, and it changes with the rules above. " +
-    "Change the rules in <b>Setup</b> and the squares that move will move.</p>" +
+    '<p class="fine">Read a row to your total and a column to the dealer’s upcard. ' +
+    "<b>17+</b> and <b>8−</b> are single rows because nothing in them varies: every hard total " +
+    "from 17 up stands against everything, and every total of 8 or less hits against everything, " +
+    "under all four rule sets. Clicking one opens the band. Every square here is checked against " +
+    "the odds computed from a full shoe — the chart is not typed in from a book, it is the play " +
+    "with the highest expected value, and it changes with the rules above. Change the rules in " +
+    "<b>Setup</b> and the squares that move will move.</p>" +
     "</div></div>" + indexPanel(c) + cellDetail(c) + "</div>";
   $("foot").innerHTML =
     "D means double if the table lets you, otherwise hit. Ds means double if you can, otherwise stand " +
@@ -952,31 +996,58 @@ function legend() {
       .join("") + "</div>";
 }
 
-function chartSection(c, key, title, blurb) {
+/* Hard 17 through 21 all stand against everything, and 8 down to 5 all hit
+   against everything — under every rule set, which is asserted in test_game.
+   Drawing nine rows to say two things buries the part of the chart that
+   actually varies, so each band collapses to a single row. The underlying
+   squares are untouched: the record shown is summed across the band, and
+   clicking opens the representative square. */
+function chartRows(c, key) {
   const rows = Object.keys(c.grid[key]).map(Number).sort((a, b) => b - a);
+  if (key !== "hard") return rows.map((r) => ({ label: rowLabel(key, r), row: r, covers: [r] }));
+  const out = [];
+  const top = rows.filter((r) => r >= 17);
+  const low = rows.filter((r) => r <= 8);
+  if (top.length) out.push({ label: "17+", row: Math.min(...top), covers: top });
+  rows.filter((r) => r > 8 && r < 17).forEach((r) => out.push({ label: String(r), row: r, covers: [r] }));
+  if (low.length) out.push({ label: "8−", row: Math.max(...low), covers: low });
+  return out;
+}
+
+function chartSection(c, key, title, blurb) {
   const heat = c.heatmap || {};
   let h = '<h3 class="csec">' + title + '<span>' + blurb + "</span></h3>" +
     '<div class="cscroll"><table class="chart"><tr><th class="rh"></th>' +
     c.upcards.map((u) => "<th>" + upLabel(u) + "</th>").join("") + "</tr>";
-  for (const row of rows) {
-    h += '<tr><th class="rh">' + rowLabel(key, row) + "</th>";
-    c.grid[key][row].forEach((mv, i) => {
+  for (const r of chartRows(c, key)) {
+    h += '<tr><th class="rh">' + r.label + "</th>";
+    c.grid[key][r.row].forEach((mv, i) => {
       const up = c.upcards[i];
-      const name = cellName(key, row, up);
-      const rec = heat[name];
+      const name = cellName(key, r.row, up);
+      /* a collapsed band's record is everything in it, added up */
+      let seen = 0, right = 0;
+      r.covers.forEach((cr) => {
+        const x = heat[cellName(key, cr, up)];
+        if (x) { seen += x.seen; right += x.seen * x.accuracy; }
+      });
       let shade = "";
-      if (CHART_OVERLAY && rec) {
-        const a = rec.accuracy;
+      if (CHART_OVERLAY && seen) {
+        const a = right / seen;
         shade = a >= 0.9 ? " k3" : a >= 0.7 ? " k2" : a >= 0.4 ? " k1" : " k0";
       }
       const sel = CHART_CELL === name ? " sel" : "";
-      h += '<td class="m' + mv + shade + sel + '" onclick="pickCell(\'' + key + "'," + row + "," + up + ')" ' +
-        'title="' + esc(name + " → " + CODE_NAME[mv]) + '">' + mv +
-        (rec ? '<u>' + rec.seen + "</u>" : "") + "</td>";
+      h += '<td class="m' + mv + shade + sel + '" onclick="pickCell(\'' + key + "'," + r.row + "," + up + ')" ' +
+        'title="' + esc(bandName(key, r, up) + " → " + CODE_NAME[mv]) + '">' + mv +
+        (seen ? "<u>" + seen + "</u>" : "") + "</td>";
     });
     h += "</tr>";
   }
   return h + "</table></div>";
+}
+
+function bandName(key, r, up) {
+  if (r.covers.length === 1) return cellName(key, r.row, up);
+  return "hard " + r.label + " vs " + upLabel(up);
 }
 
 function rowLabel(key, row) {
@@ -1092,6 +1163,9 @@ function viewQuiz() {
     ["weak", "Your weak spots", "Drawn from wherever your record is worst, with the squares you keep missing coming up most.", "◉"],
     ["missed", "Recently missed", "Only the hands you have actually got wrong at the table.", "✗"],
     ["rare", "Hands you never see", "The splits and soft doubles that turn up once an evening — the part everyone is worst at, for exactly that reason.", "⚑"],
+    ["deviations", "The index plays", "The eighteen squares a count moves, asked from both sides of the index so the answer is never the one you expected.", "±"],
+    ["counting", "Keeping the count", "Running counts, true counts and insurance. The arithmetic, drilled where there is time to be slow.", "#"],
+    ["everything", "Everything", "Chart, counting and deviations mixed together, which is the only way they ever arrive at a table.", "✦"],
     ["chips", "Play for chips", "Ten questions. Every right answer is $10 in chips you can take to the table.", "$"],
     ["custom", "Build your own", "Pick exactly which part of the chart to drill.", "⚙"],
   ];
@@ -1116,8 +1190,9 @@ function viewQuiz() {
     '<button class="mv go" style="width:100%" onclick="startQuiz()">Start</button>' +
     "</div></div>" + quizHistoryCard() + "</div>";
   $("foot").innerHTML =
-    "Quiz answers count towards how well the app thinks you know the chart, the same as hands you " +
-    "actually play. They do not touch your money — except the chips quiz, which is the only way " +
+    "Chart and index questions count towards how well the app thinks you know the chart, the same " +
+    "as hands you actually play. Running and true count drills do not \u2014 they have no square " +
+    "behind them. None of it touches your money \u2014 except the chips quiz, which is the only way " +
     "to get more once you have lost what you had.";
   statsThenRedraw("quiz", () => !QUIZ);
 }
@@ -1229,7 +1304,64 @@ function drawQuizRunner() {
 
 function quizQuestion(q) {
   const x = q.question;
-  return '<div class="qtable">' +
+  const kind = x.kind || "play";
+  if (kind === "running") return quizRunning(q, x);
+  if (kind === "true") return quizTrue(q, x);
+  if (kind === "insurance") return quizInsurance(q, x);
+  return quizHand(q, x);
+}
+
+/* Count these cards. The starting count is given, because a count you cannot
+   start from is not a count. */
+function quizRunning(q, x) {
+  return '<div class="qcount"><div class="zlab">RUNNING COUNT BEFORE</div>' +
+    '<div class="qbig">' + (x.start >= 0 ? "+" : "−") + Math.abs(x.start) + "</div>" +
+    '<div class="zlab" style="margin-top:14px">THESE COME OUT</div>' +
+    '<div class="hand-row qrun">' + x.cards.map((c) => cardEl(c)).join("") + "</div>" +
+    "</div>" + quizNumberEntry("What is the running count now?", "+0");
+}
+
+/* The division. Decks remaining are given here — judging the tray is practised
+   at the table, where there is a tray to judge. */
+function quizTrue(q, x) {
+  return '<div class="qcount"><div class="pairq">' +
+    '<div><div class="zlab">RUNNING COUNT</div><div class="qbig">' +
+    (x.running >= 0 ? "+" : "−") + Math.abs(x.running) + "</div></div>" +
+    '<div><div class="zlab">DECKS LEFT</div><div class="qbig">' + x.decks_left + "</div></div>" +
+    "</div></div>" + quizNumberEntry("What is the true count?", "+0.0");
+}
+
+function quizInsurance(q, x) {
+  return '<div class="qcount"><div class="zlab">DEALER SHOWS AN ACE · INSURANCE OFFERED</div>' +
+    '<div class="hand-row" style="margin:10px 0 16px">' +
+    cardEl({ rank: "A", suit: "♠", red: false }) + '<div class="card down"></div></div>' +
+    '<div class="zlab">TRUE COUNT</div><div class="qbig">' +
+    (x.true_count >= 0 ? "+" : "−") + Math.abs(x.true_count).toFixed(1) + "</div></div>" +
+    '<div class="moves" style="margin-top:18px">' +
+    '<button class="mv" onclick="answerQuiz(\'take\')">Take it<small>INSURANCE</small></button>' +
+    '<button class="mv" onclick="answerQuiz(\'decline\')">No thanks<small>DECLINE</small></button>' +
+    "</div>";
+}
+
+function quizNumberEntry(label, ph) {
+  return '<div class="qnum"><label>' + esc(label) + "</label>" +
+    '<input id="qn" type="text" inputmode="text" autocomplete="off" placeholder="' + ph +
+    '" onkeydown="if(event.key===\'Enter\'){event.preventDefault();submitNumber();}">' +
+    '<button class="mv go" onclick="submitNumber()">Answer</button></div>';
+}
+
+function submitNumber() {
+  const el = $("qn");
+  if (!el || !el.value.trim()) return;
+  answerQuiz(el.value.trim());
+}
+
+function quizHand(q, x) {
+  return (x.true_count != null
+      ? '<div class="qtc">TRUE COUNT <b>' +
+        (x.true_count >= 0 ? "+" : "−") + Math.abs(x.true_count).toFixed(1) + "</b></div>"
+      : "") +
+    '<div class="qtable">' +
     '<div class="qside"><div class="zlab">DEALER SHOWS</div>' +
     '<div class="hand-row">' + cardEl(x.up_card) + '<div class="card down"></div></div></div>' +
     '<div class="qside"><div class="zlab">YOU HAVE</div>' +
@@ -1246,24 +1378,41 @@ function quizQuestion(q) {
     "</p>";
 }
 
+/* Answers come in three shapes now: a chart move, a typed number, and
+   take/decline. Naming them is the only part that differs. */
+function answerName(last, v) {
+  const kind = (last.asked && last.asked.kind) || "play";
+  if (kind === "running" || kind === "true")
+    return String(v).replace(/^-/, "\u2212");
+  if (kind === "insurance") return v === "take" ? "take it" : "decline";
+  return MOVE[v] || String(v);
+}
+
 function quizFeedback(last, q) {
   const e = last.explanation;
   const terms = (e && e.terms) || [];
+  const kind = (last.asked && last.asked.kind) || "play";
+  const numeric = kind === "running" || kind === "true";
   return '<div class="verdict ' + (last.correct ? "yes" : "no") + '"><h3>' +
-    (last.correct ? "Right — " + MOVE[last.answer] : "No — " + cap(MOVE[last.answer])) +
-    "</h3><p>" + esc(last.cell) + " → <kbd>" + MOVE[last.answer] + "</kbd>" +
-    (last.correct ? "" : ". You said <kbd>" + MOVE[last.chose] + "</kbd>, which gives up <b>" +
-      last.cost.toFixed(3) + "</b> per dollar") + ".</p></div>" +
+    (last.correct ? "Right — " + answerName(last, last.answer)
+                  : "No — " + cap(answerName(last, last.answer))) +
+    "</h3><p>" + (last.detail ? esc(last.detail) + " " : esc(last.cell) + " → <kbd>" +
+      answerName(last, last.answer) + "</kbd>") +
+    (last.correct ? "" : " You said <kbd>" + esc(String(last.chose)) + "</kbd>" +
+      (numeric || !last.cost ? "" : ", which gives up <b>" + last.cost.toFixed(3) +
+        "</b> per dollar")) + "</p></div>" +
     (e && e.rule_note ? '<div class="note">' + esc(e.rule_note) + "</div>" : "") +
     (e
       ? '<div class="hook" style="margin-top:14px">' + link(e.hook, terms) + "</div>" +
         '<div class="prose">' + e.paragraphs.map((p) => "<p>" + link(p, terms) + "</p>").join("") + "</div>" +
         '<div class="recall"><span>WORTH MEMORISING</span><p>' + e.remember + "</p></div>"
       : "") +
-    '<div class="evrows" style="margin-top:14px">' +
-    Object.entries(last.evs).sort((a, b) => b[1] - a[1]).map(([m, v]) =>
-      '<div class="evrow' + (m === last.best ? " win" : "") + '"><div class="nm">' + cap(MOVE[m]) +
-      '</div><div class="vl">' + ev(v) + "</div></div>").join("") + "</div>" +
+    (last.evs
+      ? '<div class="evrows" style="margin-top:14px">' +
+        Object.entries(last.evs).sort((a, b) => b[1] - a[1]).map(([m, v]) =>
+          '<div class="evrow' + (m === last.best ? " win" : "") + '"><div class="nm">' + cap(MOVE[m]) +
+          '</div><div class="vl">' + ev(v) + "</div></div>").join("") + "</div>"
+      : "") +
     '<button class="mv go" style="width:100%;margin-top:16px" onclick="' +
     (q.done ? "showQuizSummary()" : "nextQuiz()") + '">' +
     (q.done ? "See how you did" : "Next question") + "<small>SPACE</small></button>";
@@ -1311,6 +1460,66 @@ function abandonQuiz() {
 let ANA = "skill";
 let SIMFORM = { runs: 20, hands: 500, table_min: null, bankroll: null, ramp: "flat", skill: "perfect" };
 let CALCFORM = { table_min: null, hands: 400, ruin_target: 0.05 };
+
+
+/* ---------------- how the counting is going ----------------
+   Three separate skills, reported separately, because they fail for different
+   reasons: keeping the running count is arithmetic, judging the tray is a
+   guess, and the index plays are memory. One number would hide which. */
+function countingPanel(st) {
+  const c = st.counting || {};
+  const ch = c.checks || {};
+  const rec = c.indices || {};
+  const plays = c.plays || [];
+
+  const seen = plays.filter((p) => rec[p.key]);
+  const right = seen.reduce((n, p) => n + rec[p.key].right, 0);
+  const total = seen.reduce((n, p) => n + rec[p.key].seen, 0);
+
+  const worst = plays
+    .filter((p) => rec[p.key] && rec[p.key].seen >= 2)
+    .map((p) => ({ p, r: rec[p.key], rate: rec[p.key].right / rec[p.key].seen }))
+    .sort((a, b) => a.rate - b.rate)
+    .slice(0, 6);
+
+  return '<div class="panel"><div class="phead"><h2>THE COUNTING</h2><em>' +
+    (ch.asked ? ch.asked + " checks · " + total + " index plays" : "nothing recorded yet") +
+    "</em></div><div class=\"pbody\">" +
+
+    '<div class="two">' +
+    '<div><div class="big ' + (ch.accuracy == null ? "" : ch.accuracy >= 80 ? "up" : "down") + '">' +
+    (ch.accuracy == null ? "—" : ch.accuracy + "%") +
+    '</div><div class="sub">running counts kept</div></div>' +
+    '<div><div class="big ' + (!total ? "" : right / total >= 0.8 ? "up" : "down") + '">' +
+    (total ? Math.round((right / total) * 100) + "%" : "—") +
+    '</div><div class="sub">index plays right</div></div></div>' +
+
+    (ch.asked
+      ? '<div class="kv"><span>Checks you asked for yourself</span><b>' +
+        (ch.asked - (ch.interrupted || 0)) + "</b></div>" +
+        '<div class="kv"><span>Checks that interrupted you</span><b>' + (ch.interrupted || 0) +
+        (ch.interrupted ? " · " + (ch.interrupted_right || 0) + " right" : "") + "</b></div>" +
+        '<div class="kv"><span>Typical error when you were wrong</span><b>' +
+        (ch.avg_drift == null ? "—" : "±" + ch.avg_drift) + "</b></div>" +
+        '<div class="kv"><span>Worst you have ever been out</span><b>' +
+        (ch.worst_drift ? "±" + ch.worst_drift : "—") + "</b></div>"
+      : '<p class="idle" style="margin-top:12px">Press <b>REVEAL COUNT</b> at the table, or ' +
+        "let a check interrupt you, and this fills in.</p>") +
+
+    (worst.length
+      ? '<div style="margin-top:14px"><p class="small">The index plays you are getting wrong. ' +
+        "These are worth more than any square on the basic chart, because they only come up " +
+        "when the money is already big.</p>" +
+        worst.map((w) => '<div class="miss"><div>' + esc(ixLabel(w.p)) + " · index " +
+          ixNum(w.p.index) + "</div><span>" + w.r.right + "/" + w.r.seen + "</span></div>").join("") +
+        "</div>"
+      : "") +
+
+    '<div class="pic" style="margin-top:14px">A running count you cannot keep makes every ' +
+    "index play below it worthless, and an index you have not learned wastes a count you kept " +
+    "perfectly. They are worth practising in that order.</div>" +
+    "</div></div>";
+}
 
 async function viewAnalysis() {
   const st = await needStats();
@@ -1419,6 +1628,8 @@ function anaSkill(st) {
     '<div class="pic" style="margin-top:14px">A list of squares tells you what you got wrong. A ' +
     "pattern tells you why, and one idea is easier to fix than forty corrections.</div>" +
     "</div></div>" +
+
+    countingPanel(st) +
 
     '<div class="panel"><div class="phead"><h2>WHAT TO WORK ON NEXT</h2></div><div class="pbody">' +
     '<p class="small">Ordered by how much each one is holding your score down — how often you ' +
@@ -2039,6 +2250,7 @@ document.addEventListener("keydown", (e) => {
   const k = e.key.toLowerCase();
 
   if (TAB === "quiz" && QUIZ) {
+    if (!QUIZ.last && $("qn")) return;      // a typed answer is waiting; leave the keys alone
     if (QUIZ.last) {
       if (e.code === "Space" || e.key === "Enter") {
         e.preventDefault();

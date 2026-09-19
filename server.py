@@ -197,6 +197,8 @@ def full_stats(account_id):
         "ledger": db.ledger(account_id, 120),
         "money_curve": db.money_curve(account_id),
         "quizzes": db.quiz_history(account_id, 20),
+        # what the table itself costs, for these rules rather than a constant
+        "house_edge": round(sim.house_edge(rset, cfg.get("decks")), 5),
         "skill": {
             "accuracy": prof.accuracy,
             "sharpness": prof.sharpness,
@@ -403,7 +405,13 @@ def run_simulation(account_id, data):
         "decks": decks, "penetration": penetration, "ramp": ramp, "skill": skill,
         "error_rate": round(error_rate, 4), "rules": rset,
     }
-    out["theory"] = sim.survival_table(table_min, bankroll, edge=out["edge"] or -0.005)
+    # The swing this run actually produced, not the flat-betting constant — a
+    # spread bettor's hands are three times as wide and the ruin figures are
+    # meaningless without it.
+    out["theory"] = sim.survival_table(
+        table_min, bankroll,
+        edge=out["edge_per_hand"] if out.get("edge_per_hand") is not None else -0.0042,
+        sd=out.get("sd_per_hand") or sim.sd_for(ramp))
     return out
 
 
@@ -420,15 +428,17 @@ def run_calculator(account_id, data):
     table_min = num("table_min", int(base["table_min"]), 1, 10000)
     hands = num("hands", 500, 10, 100000)
     risk = num("ruin_target", 0.05, 0.005, 0.5)
-    edge = num("edge", -0.005, -0.05, 0.02)
+    edge = num("edge", -0.0042, -0.05, 0.02)
+    spread_sd = num("sd", sim.sd_for(str(data.get("ramp") or "flat")), 1.0, 12.0)
 
-    answer = sim.bankroll_for(table_min, hands, risk, edge)
+    answer = sim.bankroll_for(table_min, hands, risk, edge, spread_sd)
     answer["alternatives"] = [
-        dict(sim.bankroll_for(table_min, hands, r, edge), ruin_target=r)
+        dict(sim.bankroll_for(table_min, hands, r, edge, spread_sd), ruin_target=r)
         for r in (0.20, 0.10, 0.05, 0.01)
     ]
     answer["by_hands"] = [
-        {"hands": h, "bankroll": sim.bankroll_for(table_min, h, risk, edge)["bankroll"]}
+        {"hands": h,
+         "bankroll": sim.bankroll_for(table_min, h, risk, edge, spread_sd)["bankroll"]}
         for h in (100, 200, 400, 800, 1600, 3200)
     ]
     return answer

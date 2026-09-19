@@ -1689,6 +1689,8 @@ function anaSkill(st) {
   const perHand = sk.cost_per_hand;
   const min = st.config.table_min;
   const hourly = perHand == null ? null : perHand * min * 80;
+  // the edge of the table you have actually set up, not a fixed half a percent
+  const houseEdge = Math.abs(st.house_edge == null ? 0.0042 : st.house_edge);
 
   $("anabody").innerHTML =
     '<div class="grid2">' +
@@ -1737,16 +1739,20 @@ function anaSkill(st) {
         "About 80 hands an hour at a full table.</p>" +
         '<div class="kv" style="margin-top:10px"><span>Given away per hand</span><b>' +
         perHand.toFixed(4) + " bets</b></div>" +
-        '<div class="kv"><span>The house edge itself</span><b>0.0050 bets</b></div>' +
+        '<div class="kv"><span>The house edge on this table</span><b>' +
+        houseEdge.toFixed(4) + " bets</b></div>" +
         '<div class="kv"><span>So your mistakes are</span><b class="' +
-        (perHand > 0.005 ? "down" : "up") + '">' + (perHand / 0.005).toFixed(1) +
+        (perHand > houseEdge ? "down" : "up") + '">' + (perHand / houseEdge).toFixed(1) +
         "× the house edge</b></div>" +
-        '<div class="note ' + (perHand > 0.005 ? "bad" : "ok") + '">' +
-        (perHand > 0.005
+        '<div class="note ' + (perHand > houseEdge ? "bad" : "ok") + '">' +
+        (perHand > houseEdge
           ? "Your mistakes currently cost you more than the casino does. That is the good news — " +
             "the house edge is fixed and this part is not."
           : "Your mistakes now cost less than the house edge, which is about as good as this gets. " +
-            "Beyond here the game is what it is.") + "</div>") +
+            "Beyond here the game is what it is.") + "</div>" +
+        '<p class="fine">That house figure is for the rules you set on the Setup tab — decks, soft 17, ' +
+        "doubling after a split and above all what a blackjack pays. It is not a fixed half a percent, " +
+        "and 6:5 more than quadruples it.</p>") +
     '<h3 class="mini-h">HOW MUCH OF THE CHART YOU HAVE BEEN TESTED ON</h3>' +
     '<div class="covbar"><i class="solid" style="width:' + (cov.solid / cov.total * 100) + '%"></i>' +
     '<i class="seen" style="width:' + ((cov.seen - cov.solid) / cov.total * 100) + '%"></i></div>' +
@@ -1906,7 +1912,8 @@ function simResults(m) {
     "</div>" +
     '<h3 class="mini-h">WHERE THE ' + m.runs + " SESSIONS ENDED UP</h3>" +
     histogram(m.histogram) +
-    '<div class="note">The middle of that spread is what "the house edge is half a percent" actually ' +
+    '<div class="note">The middle of that spread is what an edge of ' +
+    (Math.abs((m.edge || 0) * 100)).toFixed(2) + '% actually ' +
     "means over " + num(s.hands) + " hands: a median result of <b>" + money(m.median_net) +
     "</b> hidden inside a range from <b>" + money(m.worst - m.start) + "</b> to <b>" +
     money(m.best - m.start) + "</b>. Anyone telling you what happened to them last night is quoting " +
@@ -1935,10 +1942,16 @@ function survivalTable(m, s) {
     m.theory.map((r) => "<tr><td>" + num(r.hands) + " hands</td><td>" + r.hours +
       "</td><td>" + pct(r.survive, 1) + "</td><td>" + money(r.expected) + "</td></tr>").join("") +
     "</table></div>" +
-    '<p class="fine">Worked out from a random walk with the measured edge and a 1.14-bet ' +
-    "swing per hand — no dealing involved. " + compareSurvival(m, s) +
-    " The formula leans pessimistic, which is the direction you want an estimate of " +
-    "going broke to lean.</p>";
+    '<p class="fine">Worked out from a random walk with the measured edge and the ' +
+    (m.sd_per_hand ? "<b>" + m.sd_per_hand.toFixed(2) + "-bet</b>" : "measured") +
+    " swing these sessions actually produced — no dealing involved. " + compareSurvival(m, s) +
+    " The two are worked out completely differently, so read them as a check on each other rather " +
+    "than as one number: where they disagree, the dealt sessions are the ones that happened.</p>" +
+    (m.sd_per_hand > 1.6
+      ? '<p class="fine"><b>Note the swing.</b> Flat betting runs about 1.15 bets a hand. Spreading ' +
+        "your bet pushes it to " + m.sd_per_hand.toFixed(2) + " here, because the variance rides on the " +
+        "big bets. A bankroll worked out from the flat figure would be far too small for this ramp.</p>"
+      : "");
 }
 
 function compareSurvival(m, s) {
@@ -2365,9 +2378,10 @@ function viewSetup() {
     "Set the reshuffling option to a shuffling machine and it stops mattering entirely, which is exactly " +
     "why casinos bought them.</div>" +
     '<div class="note bad" style="margin-top:12px"><b>6 to 5 is the one that matters.</b> It sounds ' +
-    "like a small change and it adds about 1.4% to the house edge — roughly tripling it. No amount " +
-    "of correct play makes that back. Set it here and run the simulator on the Analysis tab if you want " +
-    "to watch what it does.</div>" +
+    "like a small change. It adds about 1.4% to the house edge, which on this table takes it from " +
+    "roughly 0.42% to roughly 1.8% — four times the game you sat down to. No amount of correct play " +
+    "makes that back, and counting a 6:5 shoe barely gets you to level. Set it here and run the " +
+    "simulator on the Analysis tab if you want to watch what it does.</div>" +
     '<p class="fine">The chart on the <b>Chart</b> tab redraws itself for whatever you choose here, ' +
     "and your decisions are graded against that chart, so the two can never disagree.</p>" +
     "</div></div></div>";

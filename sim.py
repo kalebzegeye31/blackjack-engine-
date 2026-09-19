@@ -23,7 +23,71 @@ import random
 
 import rules as R
 
-HAND_SD = 1.14        # standard deviation of one hand, in bets, played by the chart
+HAND_SD = 1.14        # standard deviation of one hand, in bets, flat-betting the chart
+
+# The same figure once you spread your bet, in units of the table minimum.
+#
+# Spreading raises the swing much faster than it raises the average bet, because
+# the big bets are the ones carrying the variance: "steep" averages 2.1 units a
+# hand but swings 3.8 of them. Feeding the flat 1.14 into a ruin calculation for
+# a spread bettor understates the swing threefold, and every bankroll answer
+# that comes out the other side is too small — in the direction that empties it.
+# Measured over three million hands each; test_sim.py re-measures and fails if
+# these drift.
+RAMP_SD = {"flat": 1.15, "mild": 2.01, "steep": 3.79}
+
+
+def sd_for(ramp):
+    """Per-hand standard deviation in units, for a named ramp."""
+    return RAMP_SD.get(ramp, HAND_SD)
+
+
+# What the game costs you a hand, flat-betting the chart, by rule set.
+#
+# The base is 40 million hands across ten independent shoes: -0.4231% with two
+# standard errors of 0.0365, against a published -0.43% for six decks, stand on
+# soft 17, double after split, 3:2 and no surrender. Every adjustment below is a
+# paired measurement over four million hands on identical shuffles, so the shoe
+# cancels and only the rule shows. test_sim.py re-measures them.
+#
+# There is no point hard-coding "the house edge is half a percent" anywhere: 6:5
+# alone more than quadruples it, and that is a table this app lets you sit at.
+BASE_EDGE = -0.0042
+
+_RULE_COST = {
+    "hit_soft_17": -0.0021,      # published -0.22%
+    "no_das": -0.0013,           # published -0.14%
+    "six_five": -0.0136,         # published -1.39%
+    "resplit_aces": +0.0006,     # published +0.08%
+}
+
+# Fewer decks is better for the player. Measured while still playing the
+# multi-deck chart, which is what this app deals at every deck count, so the
+# single-deck figure understates what a proper single-deck chart would give.
+_DECK_COST = {1: +0.0042, 2: +0.0006, 4: +0.0002, 6: 0.0, 8: -0.0014}
+
+
+def house_edge(rules, decks=None):
+    """
+    Roughly what this rule set costs you a hand, before your own mistakes.
+
+    An estimate assembled from measured pieces, not a fresh simulation — good to
+    about a twentieth of a percent, which is far closer than any fixed constant
+    can be once the rules are allowed to move.
+    """
+    n = int(decks if decks is not None else rules.get("decks", 6))
+    edge = BASE_EDGE + _DECK_COST.get(n, -0.0014 if n > 8 else 0.0)
+    if rules.get("hit_soft_17"):
+        edge += _RULE_COST["hit_soft_17"]
+    if not rules.get("das", True):
+        edge += _RULE_COST["no_das"]
+    if float(rules.get("blackjack_pays", 1.5)) < 1.5:
+        edge += _RULE_COST["six_five"]
+    if rules.get("resplit_aces"):
+        edge += _RULE_COST["resplit_aces"]
+    if int(rules.get("max_hands", 4)) < 4:
+        edge += -0.0001 * (4 - int(rules.get("max_hands", 4)))
+    return edge
 
 
 # ---------------------------------------------------------------------------
@@ -261,6 +325,7 @@ def run_session(rules, bankroll, table_min, hands, decks=6, penetration=0.75,
     max_dd = 0.0
     wagered = 0.0
     played = 0
+    u_sum = u_sq = 0.0          # per-hand result in units, for the realised swing
     curve = []
     every = max(1, hands // CURVE_POINTS)
 
@@ -272,7 +337,11 @@ def run_session(rules, bankroll, table_min, hands, decks=6, penetration=0.75,
         if bet < table_min:
             break                                  # busted out
         wagered += bet
-        stack += sim.round(bet, error_rate, miss_rates, bankroll=stack)
+        delta = sim.round(bet, error_rate, miss_rates, bankroll=stack)
+        stack += delta
+        u = delta / table_min
+        u_sum += u
+        u_sq += u * u
         played += 1
         peak = max(peak, stack)
         trough = min(trough, stack)
@@ -294,6 +363,7 @@ def run_session(rules, bankroll, table_min, hands, decks=6, penetration=0.75,
         "wagered": round(wagered, 2),
         "edge": ((stack - bankroll) / wagered) if wagered else None,
         "curve": curve,
+        "u_sum": u_sum, "u_sq": u_sq,     # pooled by run_many, then dropped
     }
 
 
@@ -341,11 +411,25 @@ def run_many(runs=20, **kw):
             "hi": round(_quantile(col, 0.90), 2),
         })
 
+    # the swing this run actually produced, pooled across every hand dealt
+    hands_played = sum(s["hands"] for s in sessions)
+    u_sum = sum(s["u_sum"] for s in sessions)
+    u_sq = sum(s["u_sq"] for s in sessions)
+    sd_per_hand = (math.sqrt(max(0.0, u_sq / hands_played - (u_sum / hands_played) ** 2))
+                   if hands_played > 1 else None)
+    # Drift per hand, in units. NOT the same as `edge` below, which is per unit
+    # wagered: spreading your bet averages about two units a hand, so the two
+    # differ by that factor. ruin_within wants this one, in the same units as sd.
+    edge_per_hand = (u_sum / hands_played) if hands_played else None
+
+    drop = ("curve", "u_sum", "u_sq")
     start = sessions[0]["start"]
     return {
         "runs": runs,
         "start": start,
-        "sessions": [{k: v for k, v in s.items() if k != "curve"} for s in sessions],
+        "sd_per_hand": round(sd_per_hand, 4) if sd_per_hand else None,
+        "edge_per_hand": round(edge_per_hand, 6) if edge_per_hand is not None else None,
+        "sessions": [{k: v for k, v in s.items() if k not in drop} for s in sessions],
         "curves": [s["curve"] for s in sessions],
         "bands": bands,
         "busted": busted,
@@ -447,9 +531,23 @@ def bankroll_for(table_min, hands, ruin_target=0.05, edge=-0.005, sd=HAND_SD):
 
 def survival_table(table_min, bankroll, edge=-0.005, sd=HAND_SD,
                    marks=(50, 100, 200, 400, 800, 1600)):
-    """Chance of still having money after this many hands, for a fixed stake."""
-    units = bankroll / table_min if table_min else 0
+    """
+    Chance of still having money after this many hands.
+
+    `edge` is the drift per hand in units, not the edge per unit wagered — for a
+    spread bettor those differ by the average bet, which is about two.
+
+    `sd` has to be the swing of the bet you are actually making. Pass the flat
+    figure for a spread bettor and the table reads far too kindly: at a steep
+    ramp the real swing is three times 1.14, and the answer stops being an
+    estimate and becomes a wrong one.
+
+    You are out when you cannot cover the minimum, not when you reach zero, so
+    the barrier sits one unit up from the bottom.
+    """
+    units = (bankroll / table_min - 1.0) if table_min else 0
     return [{"hands": n, "hours": round(n / 80.0, 1),
              "survive": round(1.0 - ruin_within(units, n, edge, sd), 4),
-             "expected": round(bankroll + edge * n * table_min, 2)}
+             "expected": round(bankroll + edge * n * table_min, 2),
+             "sd": round(sd, 3)}
             for n in marks]

@@ -34,7 +34,10 @@ from game import Table
 
 QUICK = "--quick" in sys.argv
 ROUNDS = 3000 if QUICK else 30000
-SIM_HANDS = 200_000 if QUICK else 2_000_000
+# Enough hands that three standard errors is a tolerance worth having: at 2
+# million one standard error is 0.081%, so the gate below accepted a quarter of
+# a percent of drift. At 10 million it is 0.036% and the gate means something.
+SIM_HANDS = 200_000 if QUICK else 10_000_000
 
 random.seed(11)
 checks = []
@@ -116,11 +119,15 @@ print("\nthe fast engine, same rules, %s hands" % format(SIM_HANDS, ","))
 start = time.time()
 chunk = 50_000
 sim_net = sim_wagered = 0.0
+u_sum = u_sq = 0.0
 for i in range(SIM_HANDS // chunk):
     s = sim.run_session(rules, bankroll=1e12, table_min=15, hands=chunk,
                         decks=6, penetration=0.75, seed=4000 + i)
     sim_net += s["net"]
     sim_wagered += s["wagered"]
+    u_sum += s["u_sum"]
+    u_sq += s["u_sq"]
+sim_hand_sd = math.sqrt(max(0.0, u_sq / SIM_HANDS - (u_sum / SIM_HANDS) ** 2))
 sim_edge = sim_net / sim_wagered * 100
 sim_se = sim.HAND_SD / math.sqrt(SIM_HANDS) * 100
 print("  %s hands in %.1fs  (%s hands/sec)"
@@ -138,10 +145,31 @@ result("the two engines agree with each other", gap < 2.5 * combined,
 # ---------------------------------------------------------------------------
 
 PUBLISHED = -0.43        # 6 decks, stand on soft 17, double after split, 3:2
+
+# A tolerance in standard errors is only a test if the standard error is small.
+# At 2,000,000 hands one is 0.081%, so a 3-sigma gate accepts anything from
+# -0.67% to -0.19%: an engine handing the player a free quarter of a percent
+# would sail through it, and in QUICK mode the window is wide enough to accept a
+# game the player is winning. So the gate is an absolute band as well, wide
+# enough not to fire on noise and narrow enough to fail on a real bug.
 off = abs(sim_edge - PUBLISHED) / sim_se
+band = max(0.12, 3.0 * sim_se)
 print("\nagainst the published figure")
 print("  published         %+.2f%%  for 6 decks, stand on soft 17, double after split, 3:2" % PUBLISHED)
-result("the edge matches", off < 3.0, "%.1f standard errors away" % off)
+print("  accepting         %+.2f%% to %+.2f%%" % (PUBLISHED - band, PUBLISHED + band))
+if band > 0.25:
+    print("  (too few hands for this to be a real check — run without QUICK)")
+result("the edge matches", abs(sim_edge - PUBLISHED) < band,
+       "%.3f%% away, %.1f standard errors" % (abs(sim_edge - PUBLISHED), off))
+
+# the swing matters as much as the edge, and nothing else checked it
+measured_sd = None
+if sim_hand_sd:
+    measured_sd = sim_hand_sd
+    print("  swing per hand    %.3f bets  (sim.HAND_SD says %.2f)" % (measured_sd, sim.HAND_SD))
+    result("the quoted swing is the one the table produces",
+           abs(measured_sd - sim.HAND_SD) < 0.05,
+           "%.3f vs %.2f" % (measured_sd, sim.HAND_SD))
 
 # ---------------------------------------------------------------------------
 # 4. each rule change costs what it is supposed to cost

@@ -129,8 +129,18 @@ That estimate is half of counting and the half nobody practises — keeping a
 running count is arithmetic you either can or cannot do, but reading the tray is
 a guess made across a table, and it is where most true counts actually go wrong.
 
-Both aids can be switched on in Setup if you want them while you find your feet.
-They default to off.
+**No hand totals either** — not yours, not the other players', not the dealer's.
+Nobody adds cards up for you at a table. Every total on the felt is withheld
+while the round is live and comes back the moment it settles, where it is
+feedback rather than help. Busts always show: they are called out loud and you
+can see the cards anyway. The dealer's upcard is still labelled, because that
+names a card sitting face up.
+
+All three aids can be switched on in Setup if you want them while you find your
+feet. They default to off.
+
+The Quiz tab still prints the total, deliberately. A flashcard that makes you
+add up first is drilling arithmetic rather than the chart.
 
 Press **REVEAL COUNT** and it does not simply tell you — it asks you first, for
 two things: what you think the running count is, and how many decks you reckon

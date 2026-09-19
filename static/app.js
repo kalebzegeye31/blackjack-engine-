@@ -403,22 +403,27 @@ function ixName(ix) {
   return "Hard " + ix.total + " against a " + upLabel(ix.up);
 }
 
-/* Your own total, or not.
+/* Nobody adds anybody's cards up for you at a table — not yours, not the other
+   players', not the dealer's. Every total on the felt is withheld while the
+   round is live and comes back once it settles, where it is feedback rather
+   than help. Busts always show: they are called out loud and you can see the
+   cards anyway. */
+function totalsShown() {
+  return !!S.config.show_totals || S.phase === "settled";
+}
 
-   Nobody adds your cards up for you at a table, and being handed the number is
-   the difference between reading a hand and being told one. It comes back once
-   the round is settled, because by then the hand is over and the total is
-   feedback rather than help. Busting still shows immediately — you would know
-   that instantly, from the dealer taking your chips. */
 function heroTotal(x) {
-  const show = S.config.show_totals || S.phase === "settled";
-  if (!show) {
+  if (!totalsShown()) {
     return '<span class="total hid">' +
       (x.bust ? "<em>BUST</em>" : "&nbsp;·&nbsp;") + "</span>";
   }
   return '<span class="total' + (x.bust ? " bust" : "") + '">' + x.total +
     (x.soft && x.total < 21 ? "<em>SOFT</em>" : "") +
     (x.bust ? "<em>BUST</em>" : "") + "</span>";
+}
+
+function seatTotal(s) {
+  return totalsShown() ? s.total : "·";
 }
 
 function drawTable() {
@@ -433,8 +438,14 @@ function drawTable() {
     '<div class="dealer-zone"><div class="zlab">DEALER</div>' +
     '<div class="hand-row">' + (d.cards.length ? d.cards.map((c, i) => cardEl(c, d.hole_hidden && i === 1)).join("") : "") + "</div>" +
     (d.cards.length
-      ? '<div class="total' + (d.bust ? " bust" : "") + '">' +
-        (d.hole_hidden ? upLabel(d.showing) + "<em>SHOWING</em>" : d.total + (d.bust ? "<em>BUST</em>" : "")) + "</div>"
+      // the upcard label names a card sitting face up, so it is never withheld;
+      // only the dealer's finished total is
+      ? '<div class="total' + (d.bust ? " bust" : "") +
+        (d.hole_hidden || totalsShown() ? "" : " hid") + '">' +
+        (d.hole_hidden
+          ? upLabel(d.showing) + "<em>SHOWING</em>"
+          : (d.bust ? "<em>BUST</em>" : (totalsShown() ? d.total : "&nbsp;·&nbsp;"))) +
+        "</div>"
       : "") + "</div>";
 
   /* The rules printed on the felt. In the flow rather than floated over it —
@@ -453,7 +464,7 @@ function drawTable() {
       return '<div class="seat' + (s.bust ? " bustd" : "") + '" style="transform:translateY(-' + lift + 'px)">' +
         '<div class="slab">SEAT ' + (i + 1) + '</div><div class="mini">' +
         s.cards.map(miniEl).join("") + '</div><div class="stot">' +
-        (s.cards.length ? (s.bust ? "bust" : s.total) : "—") + "</div></div>";
+        (s.cards.length ? (s.bust ? "bust" : seatTotal(s)) : "—") + "</div></div>";
     }).join("") + "</div>";
   }
 
@@ -1821,10 +1832,10 @@ function viewSetup() {
     sel("s_stc", c.show_true_count ? 1 : 0, [
       [0, "I'll do the division myself"],
       [1, "Work it out for me"]]) + "</div>" +
-    '<div class="field"><label>YOUR HAND TOTAL</label>' +
+    '<div class="field"><label>HAND TOTALS</label>' +
     sel("s_stot", c.show_totals ? 1 : 0, [
-      [0, "I'll add my own cards up"],
-      [1, "Show it while I play"]]) + "</div>" +
+      [0, "Nobody's \u2014 read the cards yourself"],
+      [1, "Print them while the round is live"]]) + "</div>" +
     '<div class="field"><label>COUNT CHECKS</label>' +
     sel("s_rc", c.random_checks ? 1 : 0, [
       [1, "Interrupt me now and then"],
@@ -1838,11 +1849,15 @@ function viewSetup() {
       [12, "1 to 12 — aggressive"], [20, "1 to 20 — you will be asked to leave"]]) + "</div>" +
     '<button class="mv go" style="width:100%"' + (locked ? " disabled" : "") +
     ' onclick="saveSetup()">Apply</button>' +
-    '<div class="note" style="margin-top:14px"><b>Both defaults are the hard ones on purpose.</b> ' +
-    "A real table tells you neither how deep the shoe is nor what the true count is. You look at the " +
-    "discard tray, guess the decks remaining, and divide in your head. Getting handed those numbers " +
-    "removes the two things most likely to go wrong, so the practice stops resembling the thing you " +
-    "are practising for.</div>" +
+    '<div class="note" style="margin-top:14px"><b>Every default here is the hard one on purpose.</b> ' +
+    "A real table tells you none of it: not how deep the shoe is, not the true count, and not what " +
+    "anybody is holding. You judge the discard tray by eye, divide in your head, and read the cards " +
+    "off the felt. Handed those numbers, you remove the three things most likely to go wrong \u2014 " +
+    "and the practice stops resembling the thing you are practising for.</div>" +
+    '<p class="fine">Totals come back the moment the round settles, where they are feedback rather ' +
+    "than help. Busts always show: they are called out loud at a real table and you can see the cards " +
+    "anyway. The Quiz tab still prints the total, because a flashcard that makes you add up first is " +
+    "drilling arithmetic rather than the chart.</p>" +
     "</div></div>" +
 
     '<div class="panel" style="margin-top:16px"><div class="pbody">' +

@@ -473,13 +473,20 @@ function indexVerdict() {
   const want = ix.kind === "insurance"
     ? (a.count_move === "take" ? "take insurance" : "decline insurance")
     : MOVE[a.count_move];
-  return '<div class="verdict no ixv"><h3>Index play missed — ' + esc(want) + "</h3>" +
+  /* Two different mistakes wear the same badge if you let them. Missing an
+     index play is failing to leave the chart when the count told you to.
+     Deviating at a count that never reached the index is the opposite error,
+     and calling it a "missed index play" puts the header at odds with the very
+     next line, which says there was no index play to make. */
+  return '<div class="verdict no ixv"><h3>' +
+    (moved ? "Index play missed — " : "Deviated without the count — ") + esc(want) + "</h3>" +
     "<p><b>" + esc(ixName(ix)) + "</b> is one of the Illustrious 18. The index is <kbd>" +
     ixNum(ix.index) + "</kbd>, and the true count was <kbd>" + ixNum(tc, 1) + "</kbd>, " +
     (above ? "at or above it" : "below it") + " — " +
     (moved
       ? "which is the side that moves this one, so the chart no longer applies."
-      : "which is the side the chart already covers, so it still applies.") + "</p>" +
+      : "which is the side the chart already covers. There was no index play to "
+        + "make here: the count had not reached it, so the chart still stood.") + "</p>" +
     "<p>" + esc(ix.why) + "</p>" +
     '<p class="fine">This engine puts the actual crossing at ' + ixNum(ix.crossing, 2) +
     ", which is where the published index of " + ixNum(ix.index) + " comes from.</p></div>";

@@ -759,17 +759,41 @@ function drawIntu() {
     return;
   }
   const terms = e.terms || [];
+  /* The passage is written for the square, and it opens by naming the chart
+     move — "Thirteen against a 3. Stand." On a hand the count has moved, that
+     headline is the wrong answer sitting directly under a verdict saying so,
+     and it took three paragraphs to admit it. The rule_note slot above the hook
+     already exists for the squares a different soft-17 or DAS rule flips; a
+     square the count flips is the same problem and belongs in the same place,
+     before the reader has been told the wrong thing. */
+  /* Insurance is an index play too, and its moves are named "take" and
+     "decline" rather than H/S/D/P. Reading it out of MOVE gives "undefined". */
+  const moveName = (m) => (m === "take" ? "take insurance"
+                         : m === "decline" ? "decline insurance" : MOVE[m]);
+  const moved = a && a.index_deviation && a.count_move && moveName(a.count_move);
+  const tc = a && a.true_count != null
+    ? (a.true_count >= 0 ? "+" : "−") + Math.abs(a.true_count).toFixed(1) : null;
   box.innerHTML =
+    (moved
+      ? '<div class="note bad"><b>Not at this count.</b> This square is one of the eighteen the ' +
+        "count moves" + (tc ? ", and at " + tc + " it has moved" : "") + ": the play here is <b>" +
+        moveName(a.count_move) + "</b>" +
+        (a.dev_gap != null ? ", worth " + a.dev_gap.toFixed(3) + " of a bet more than the chart" : "") +
+        ". What follows is the hand as it plays normally, which is most of the time — the count " +
+        "sits nowhere near an index on the great majority of hands.</div>"
+      : "") +
     (e.rule_note ? '<div class="note">' + esc(e.rule_note) + "</div>" : "") +
     '<div class="hook">' + link(e.hook, terms) + "</div>" +
     '<div class="prose">' + e.paragraphs.map((p) => "<p>" + link(p, terms) + "</p>").join("") + "</div>" +
     '<div class="pic">' + e.picture + "</div>" +
-    (a && a.deviation && a.true_count != null
+    (!moved && a && a.deviation && tc
       ? '<div class="note"><b>Right now the cards disagree with the chart.</b> With the count at ' +
-        (a.true_count >= 0 ? "+" : "−") + Math.abs(a.true_count).toFixed(1) + ", what is left makes <b>" +
+        tc + ", what is left makes <b>" +
         MOVE[a.best_move] + "</b> better by " + a.dev_gap.toFixed(3) +
-        ' per dollar. Learn the chart first — these <span class="gt" data-term="deviation">deviations</span> ' +
-        "are worth a fraction of a percent, and only if you are tracking the cards properly.</div>"
+        ' per dollar. There is no index play on this square — this is the exact composition ' +
+        'talking, not one of the eighteen. Learn the chart first: these ' +
+        '<span class="gt" data-term="deviation">deviations</span> are worth a fraction of a ' +
+        "percent, and only if you are tracking the cards properly.</div>"
       : "") +
     '<div class="recall"><span>WORTH MEMORISING</span><p>' + e.remember + "</p></div>";
 }

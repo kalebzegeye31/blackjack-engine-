@@ -144,7 +144,9 @@ INSURANCE = {
     "picture": "Someone is offering you 2-to-1 on a coin that only lands your way three "
                "times in ten. If a friend offered you that in a pub you'd spot it instantly. "
                "The felt just makes it feel like a service being provided.",
-    "remember": "Never take insurance. Not on a twenty, and especially not on a blackjack.",
+    "remember": ("Never take insurance without a count. Not on a twenty, and especially not on "
+                 "a blackjack. A true count of +3 or better is the one thing that changes it, "
+                 "and that is an index play rather than basic strategy."),
     "terms": ["insurance", "hole card", "expected value"],
 }
 
@@ -3905,10 +3907,16 @@ PAIRS.update({
         },
     },
 
-    # --- 10,10: never split ----------------------------------------------
+    # --- 10,10: never split, except the two squares a big count moves -----
+    #
+    # "Never" is true on eight of these ten upcards and false on the other two:
+    # a 5 and a 6 are index plays at +5 and +4. A rule you are asked to memorise
+    # has to be one the app will not then mark you wrong for following.
     10: {
         u: {
-            "hook": "Never break a twenty.",
+            "hook": ("Never break a twenty."
+                     if u not in (5, 6) else
+                     "Never break a twenty \u2014 until the count is high enough to pay for it."),
             "paragraphs": [
                 "Twenty beats or ties almost everything the dealer can end up with. Splitting "
                 "swaps one near-certain winner for two ordinary hands and a second bet at risk.",
@@ -3920,7 +3928,11 @@ PAIRS.update({
             ],
             "picture": "You already hold the second-best hand possible. Trading it for two "
                        "average ones is selling a winning ticket to buy two scratch cards.",
-            "remember": "Never split tens. Twenty stands against every card on the table.",
+            "remember": ("Never split tens. Twenty stands against every card on the table."
+                         if u not in (5, 6) else
+                         "Never split tens on the chart. Against a 5 or a 6 a very high count "
+                         "does move it, but that is an index play and it is the most "
+                         "conspicuous thing you can do at a table."),
             "terms": ["split", "stand", "expected value"],
         } for u in range(2, 12)
     },

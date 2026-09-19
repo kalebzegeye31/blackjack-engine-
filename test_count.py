@@ -394,6 +394,74 @@ def test_verdict_is_count_aware():
           t5.verdict["count_correct"] is False)
 
 
+def test_the_chart_never_contradicts_its_own_index():
+    """
+    Every square the count moves, checked from both sides.
+
+    Two ways a player gets whipsawed here. The flag that says "the chart has
+    been overruled" has to be exactly that and nothing else, or the warning the
+    app prints sits on the wrong hands. And the passage on a square the count
+    moves must not hand the player an absolute rule to memorise that the index
+    table then marks them wrong for following.
+    """
+    import coach
+    import re
+
+    print("\nno square is told one thing by the chart and another by the count")
+    absolute = re.compile(r"\b(never|always|no upcard|every card|not one)\b", re.I)
+    qualifier = re.compile(r"count|index|on the chart|without a count", re.I)
+
+    wrong_flag, unqualified, one_sided = [], [], []
+    for p in C._I18:
+        key = p["key"]
+        if key == "insurance":
+            e = coach.explain({"kind": "insurance"})
+            sides = set()
+            for tc in (-4, 0, 2, 2.9, 3, 5, 8):
+                take, _ = C.insurance_play(tc)
+                # game.py sets index_deviation from this, and basic strategy declines
+                if take != (("take" if take else "decline") != "decline"):
+                    wrong_flag.append((key, tc))
+                sides.add(take)
+        else:
+            kind = p["kind"]
+            section = "pair" if kind == "pair" else "hard"
+            row = p.get("pair") if kind == "pair" else p.get("total")
+            chart = R.chart_move(R.DEFAULT_RULES, section, row, p["up"])
+            e = coach.explain({"kind": "play", "hand_kind": kind,
+                               "total": p.get("total") or (p.get("pair") or 0) * 2,
+                               "pair": p.get("pair"), "up": p["up"]})
+            sides = set()
+            for tc in range(-6, 9):
+                want, _, dev = C.correct_move(chart, kind, p.get("total"), p.get("pair"),
+                                              p["up"], tc, can_split=(kind == "pair"))
+                if dev != (want != chart):
+                    wrong_flag.append((key, tc, dev, want, chart))
+                sides.add(dev)
+        if sides != {True, False}:
+            one_sided.append((key, sides))
+        for field in ("hook", "remember"):
+            text = e[field]
+            if absolute.search(text) and not qualifier.search(text):
+                unqualified.append((key, field, text[:70]))
+
+    check("the deviation flag means exactly 'the move has changed'",
+          not wrong_flag, str(wrong_flag[:2]))
+    check("every index flags on one side of itself and not the other",
+          not one_sided, str(one_sided[:2]))
+    check("no square memorises an absolute its own index contradicts",
+          not unqualified, str(unqualified[:2]))
+    check("all %d index squares were checked" % len(C._I18), len(C._I18) == 18)
+
+    # the eight tens upcards with no index keep their flat "never", which is true
+    flat = [u for u in range(2, 12)
+            if "until the count" not in
+            coach.explain({"kind": "play", "hand_kind": "pair", "total": 20,
+                           "pair": 10, "up": u})["hook"]]
+    check("and the eight upcards with no index keep the unqualified rule",
+          sorted(flat) == [2, 3, 4, 7, 8, 9, 10, 11], str(sorted(flat)))
+
+
 if __name__ == "__main__":
     test_tags()
     test_true_count()
@@ -405,6 +473,7 @@ if __name__ == "__main__":
     test_grading()
     test_a_pair_is_not_its_total()
     test_verdict_is_count_aware()
+    test_the_chart_never_contradicts_its_own_index()
     test_indices_against_the_engine()
     print("\n%d passed, %d failed" % (len(PASS), len(FAIL)))
     if FAIL:

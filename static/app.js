@@ -16,6 +16,7 @@ let GLOSSARY_LIST = [];
 let TAB = "table";
 let PENDING_BET = 0;
 let BUY_IN = 0;
+let COUNT_RESULT = null;     // last count check, kept on screen until dismissed
 let QUIZ = null;             // live quiz state
 let QUIZ_SETUP = { mode: "weak", length: 10, sections: ["hard", "soft", "pair"],
                    upcards: [], only: "all" };
@@ -139,7 +140,8 @@ async function send(path, body) {
 const doBet = () => send("/api/bet", { amount: PENDING_BET });
 const doMove = (m) => send("/api/action", { move: m });
 const doIns = (t) => send("/api/insurance", { take: t });
-const doNext = () => send("/api/next");
+/* a new round clears the last count check, so it cannot sit there stale */
+const doNext = () => { COUNT_RESULT = null; return send("/api/next"); };
 const addBet = (v) => { PENDING_BET = Math.min(S.bankroll, PENDING_BET + v); draw(); };
 const clearBet = () => { PENDING_BET = S.config.table_min; draw(); };
 
@@ -159,8 +161,14 @@ async function standUp() {
 function toast(msg) {
   const el = document.createElement("div");
   el.className = "toast"; el.textContent = msg;
+  el.title = "click to dismiss";
+  el.onclick = () => el.remove();
   document.body.appendChild(el);
-  setTimeout(() => el.remove(), 4600);
+  /* Long messages were vanishing mid-sentence. Roughly forty milliseconds a
+     character on top of a four second floor, capped so nothing sticks forever,
+     and a click clears it early. */
+  const ms = Math.min(20000, 4000 + String(msg).length * 40);
+  setTimeout(() => el.remove(), ms);
 }
 
 /* ---------------- shell ---------------- */
@@ -352,19 +360,38 @@ async function answerCount() {
   });
   const r = next && next.count_result;
   if (!r) return;
-  /* Two things were marked, so say which one went wrong rather than one verdict
-     covering both — they fail for completely different reasons. */
+  /* Kept on screen rather than toasted. It is two or three sentences of the most
+     useful text in the app, and a banner that deletes itself after four seconds
+     is unreadable while you are also playing a hand. */
+  COUNT_RESULT = r;
+  draw();
+}
+
+function dismissCount() { COUNT_RESULT = null; draw(); }
+
+/* The result of a count check: what you said, what it was, and what the error
+   does to you. Stays until you dismiss it or the next round starts. */
+function countResult() {
+  const r = COUNT_RESULT;
+  if (!r) return "";
   const est = r.estimate;
-  if (r.ok) {
-    toast("Both right. Running " + sgn(r.actual) +
-      (est ? ", " + est.actual + " decks left, true " + sgn2(est.tc_actual) : ""));
-  } else if (!r.count_ok && est && !est.ok) {
-    toast(r.text + " " + est.text);
-  } else if (!r.count_ok) {
-    toast(r.text);
-  } else {
-    toast("Running count right at " + sgn(r.actual) + ". " + est.text);
+  const bothOk = r.ok;
+  const lines = [];
+  if (r.count_ok) lines.push("Running count right at <b>" + sgn(r.actual) + "</b>.");
+  else lines.push(esc(r.text));
+  if (est) lines.push(est.ok
+    ? "Deck estimate good: you said <b>" + est.said + "</b>, it was <b>" + est.actual + "</b>."
+    : esc(est.text));
+  if (bothOk && est) {
+    lines.push("True count <b>" + sgn2(est.tc_actual) + "</b>.");
   }
+  return '<div class="verdict ' + (bothOk ? "yes" : "no") + ' cres" onclick="dismissCount()">' +
+    "<h3>" + (bothOk ? "Count check passed"
+                     : r.count_ok ? "The count was right, the shoe was not"
+                                  : "Count check missed") +
+    (r.reason === "interrupted" ? " — you were interrupted" : "") + "</h3>" +
+    lines.map((l) => "<p>" + l + "</p>").join("") +
+    '<p class="fine">Click to dismiss.</p></div>';
 }
 
 function sgn2(n) { return (n >= 0 ? "+" : "−") + Math.abs(n).toFixed(1); }
@@ -492,6 +519,8 @@ function drawTable() {
     h += '<div class="spot"><div class="circle">' + money(PENDING_BET) + "</div></div>";
   }
   h += "</div></div></div>";
+
+  h += countResult();
 
   /* verdict */
   const v = S.verdict;

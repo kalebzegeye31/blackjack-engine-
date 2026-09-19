@@ -304,6 +304,12 @@ def judge_ramp(units_bet, tc, spread=DEFAULT_SPREAD):
 # Grading the count itself
 # ---------------------------------------------------------------------------
 
+def _decks(n):
+    """'1 deck', '2.5 decks' — the singular only when it really is one."""
+    txt = ("%.2f" % float(n)).rstrip("0").rstrip(".")
+    return txt + (" deck" if float(n) == 1 else " decks")
+
+
 #: how far out a deck estimate can be before it starts moving decisions
 DECK_TOLERANCE = 0.5
 
@@ -336,12 +342,14 @@ def grade_estimate(said_decks, actual_decks, running):
     close = abs(off) <= DECK_TOLERANCE
 
     if close:
-        text = ("Deck estimate good: you said %.2g, it was %.2g." % (said_decks, actual_decks))
+        text = ("Deck estimate good: you said %s, it was %s."
+                % (_decks(said_decks), _decks(actual_decks)))
     else:
-        text = ("You put the shoe at %.2g decks and it was %.2g. That is %.2g out, "
+        text = ("You put the shoe at %s and it was %s. That is %s out, "
                 "which turns a running count of %+d into a true count of %+.1f when it "
                 "is really %+.1f — enough to move an index play."
-                % (said_decks, actual_decks, abs(off), running, tc_said, tc_actual))
+                % (_decks(said_decks), _decks(actual_decks), _decks(abs(off)),
+                   running, tc_said, tc_actual))
     return {"ok": close, "said": said_decks, "actual": actual_decks, "off": round(off, 2),
             "tc_said": round(tc_said, 2), "tc_actual": round(tc_actual, 2),
             "tc_off": round(tc_off, 2), "text": text}

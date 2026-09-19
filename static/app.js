@@ -329,8 +329,11 @@ const cardEl = (c, down) =>
     : '<div class="card' + (c.red ? " red" : "") + '"><i>' + c.suit + "</i>" +
       (c.rank === "10" ? "10" : c.rank) + "</div>";
 const backEl = () => '<div class="card down pending"></div>';
+/* A ten is a ten. It used to be abbreviated to "T" to fit the small card, which
+   reads as a rank that does not exist. The card is wider now instead. */
 const miniEl = (c) =>
-  '<div class="mc' + (c.red ? " red" : "") + '">' + (c.rank === "10" ? "T" : c.rank) + "</div>";
+  '<div class="mc' + (c.red ? " red" : "") + (c.rank === "10" ? " ten" : "") + '">' +
+  c.rank + "</div>";
 
 /* ---------------- the count ----------------
    Hidden by default. The button does not simply show it: it asks you for it
@@ -521,15 +524,24 @@ function drawTable() {
     (S.rules.hit_soft_17 ? "HIT SOFT 17" : "STAND ON ALL 17s") +
     " · INSURANCE PAYS 2 TO 1</small></div>";
 
-  /* other seats, nudged into an arc */
+  /* The other players, spread along the arc of the table.
+
+     They used to sit shoulder to shoulder in the middle, which read as one long
+     hand rather than separate people, and the nudge pushed the outer seats UP —
+     against the curve drawn behind them. The felt's arc is an ellipse seen from
+     above with the dealer at the top, so it is highest in the middle: outer
+     seats belong lower, not higher. */
   if (S.seats.length) {
     const n = S.seats.length, mid = (n - 1) / 2;
     h += '<div class="seats">' + S.seats.map((s, i) => {
-      const lift = Math.round(Math.abs(i - mid) * 7);
-      return '<div class="seat' + (s.bust ? " bustd" : "") + '" style="transform:translateY(-' + lift + 'px)">' +
-        '<div class="slab">SEAT ' + (i + 1) + '</div><div class="mini">' +
-        s.cards.map(miniEl).join("") + '</div><div class="stot">' +
-        (s.cards.length ? (s.bust ? "bust" : seatTotal(s)) : "—") + "</div></div>";
+      const off = mid ? (i - mid) / mid : 0;          // −1 at the far left, +1 at the far right
+      const drop = Math.round(off * off * 16);        // follow the curve down and away
+      return '<div class="seat' + (s.bust ? " bustd" : "") +
+        '" style="transform:translateY(' + drop + 'px)">' +
+        '<div class="spot"><div class="mini">' + s.cards.map(miniEl).join("") + "</div></div>" +
+        '<div class="slab">SEAT ' + (i + 1) + "</div>" +
+        '<div class="stot">' + (s.cards.length ? (s.bust ? "bust" : seatTotal(s)) : "—") +
+        "</div></div>";
     }).join("") + "</div>";
   }
 

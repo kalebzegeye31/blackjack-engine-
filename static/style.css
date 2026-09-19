@@ -75,12 +75,21 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 .total.pend{background:rgba(0,0,0,.22);color:var(--dim);font-weight:400;font-size:11.5px}
 .total em{font-style:normal;font-size:9.5px;color:var(--muted);margin-left:5px;letter-spacing:.06em}
 
-.seats{position:relative;z-index:2;display:flex;justify-content:center;align-items:flex-start;
-  gap:8px;margin:10px 0 4px;flex-wrap:nowrap}
-.seat{text-align:center;flex:0 0 auto}
-.seat .slab{font-size:8.5px;letter-spacing:.1em;color:rgba(223,231,227,.3);margin-bottom:4px}
-.seat .mini{display:flex;gap:2px;justify-content:center;min-height:30px}
-.seat .stot{font-size:10.5px;color:rgba(223,231,227,.45);margin-top:3px}
+/* The other players, spread along the curve rather than bunched in the middle. */
+.seats{position:relative;z-index:2;display:flex;justify-content:space-evenly;
+  align-items:flex-start;gap:6px;padding:0 3%;flex-wrap:nowrap;
+  /* the arc is a transform, which does not grow the box, so the bottom margin
+     has to cover the furthest an outer seat can drop */
+  margin:12px 0 24px}
+.seat{text-align:center;flex:0 1 auto;min-width:0}
+/* the betting spot each player's cards sit on */
+.seat .spot{border:1px dashed rgba(201,169,97,.3);border-radius:10px;padding:5px 7px;
+  min-height:44px;display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.1)}
+.seat .slab{font-size:8.5px;letter-spacing:.1em;color:rgba(223,231,227,.3);margin-top:5px}
+.seat .mini{display:flex;gap:2px;justify-content:center}
+.seat .stot{font-size:10.5px;color:rgba(223,231,227,.45);margin-top:1px}
+.seat.bustd .spot{border-color:rgba(183,53,42,.45)}
 .seat.bustd .stot{color:#d4796a}
 
 .hero{position:relative;z-index:2;margin-top:6px}
@@ -109,10 +118,11 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
   border-color:#4b1c18;box-shadow:inset 0 0 0 3px rgba(243,239,227,.12),0 2px 5px rgba(0,0,0,.35)}
 .card.down.pending{opacity:.3;background:repeating-linear-gradient(45deg,#2a3634,#2a3634 4px,#222c2b 4px,#222c2b 8px);
   border-color:#39433f;box-shadow:none}
-.mc{width:21px;height:30px;border-radius:3px;background:#efe9db;color:var(--card-ink);
-  font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;
-  border:1px solid #b9b19c;flex:0 0 auto}
+.mc{width:25px;height:34px;border-radius:3px;background:#efe9db;color:var(--card-ink);
+  font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;
+  border:1px solid #b9b19c;flex:0 0 auto;box-shadow:0 1px 2px rgba(0,0,0,.35)}
 .mc.red{color:var(--card-red)}
+.mc.ten{font-size:9.5px;letter-spacing:-.4px}
 @keyframes deal{from{opacity:0;transform:translateY(-10px) rotate(-2deg)}to{opacity:1;transform:none}}
 @media(prefers-reduced-motion:reduce){.card{animation:none}}
 

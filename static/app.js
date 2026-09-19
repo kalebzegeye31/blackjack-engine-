@@ -149,8 +149,46 @@ async function sitDown() {
   const r = await send("/api/session/start", { buy_in: BUY_IN });
   if (!r.error) PENDING_BET = S.config.table_min;
 }
+/* ---------------- asking before something irreversible ----------------
+   window.confirm() is blocked outright in some embedded browsers — it returns
+   false instantly without ever drawing a dialog, which silently turned "stand
+   up and cash out" into a button that did nothing at all. This is the same
+   question asked in the page, where nothing can suppress it. */
+function ask(title, body, okLabel, danger) {
+  return new Promise((resolve) => {
+    const wrap = document.createElement("div");
+    wrap.className = "modal";
+    wrap.innerHTML =
+      '<div class="mbox" role="dialog" aria-modal="true"><h3>' + esc(title) + "</h3>" +
+      "<p>" + esc(body) + "</p>" +
+      '<div class="mbtns"><button class="mv" data-no>Cancel</button>' +
+      '<button class="mv ' + (danger ? "bad" : "go") + '" data-yes>' + esc(okLabel || "Yes") +
+      "</button></div></div>";
+
+    const done = (v) => {
+      document.removeEventListener("keydown", key, true);
+      wrap.remove();
+      resolve(v);
+    };
+    const key = (e) => {
+      if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); done(false); }
+      if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); done(true); }
+    };
+
+    wrap.querySelector("[data-no]").onclick = () => done(false);
+    wrap.querySelector("[data-yes]").onclick = () => done(true);
+    wrap.onclick = (e) => { if (e.target === wrap) done(false); };
+    document.addEventListener("keydown", key, true);   // ahead of the table shortcuts
+    document.body.appendChild(wrap);
+    wrap.querySelector("[data-yes]").focus();
+  });
+}
+
 async function standUp() {
-  if (!confirm("Stand up? Your " + money(S.bankroll) + " goes back into chips and the session is closed.")) return;
+  const yes = await ask("Stand up?",
+    "Your " + money(S.bankroll) + " goes back into chips and the session is closed.",
+    "Stand up");
+  if (!yes) return;
   const r = await send("/api/session/end", {});
   if (r.closed) {
     toast("Session " + r.closed.number + " closed — " + money(r.closed.cash_out) +
@@ -1478,8 +1516,13 @@ function drawQuizSummary() {
   $("foot").innerHTML = "";
 }
 
-function abandonQuiz() {
-  if (QUIZ && QUIZ.answered < QUIZ.length && !confirm("Leave this quiz? Your answers so far are kept, but an unfinished chips quiz pays nothing.")) return;
+async function abandonQuiz() {
+  if (QUIZ && QUIZ.answered < QUIZ.length) {
+    const yes = await ask("Leave this quiz?",
+      "Your answers so far are kept, but an unfinished chips quiz pays nothing.",
+      "Leave");
+    if (!yes) return;
+  }
   QUIZ = null; STATS = null; draw();
 }
 
@@ -2144,7 +2187,10 @@ async function rename() {
 }
 
 async function wipe() {
-  if (!confirm("Delete " + ACCOUNT.name + " and every session, decision and chip? This cannot be undone.")) return;
+  const yes = await ask("Delete " + ACCOUNT.name + "?",
+    "Every session, decision and chip goes with it. This cannot be undone.",
+    "Delete for good", true);
+  if (!yes) return;
   await api("/api/accounts/delete", { account: ACCOUNT.id });
   logout();
 }
@@ -2276,6 +2322,8 @@ async function saveSetup() {
 /* ---------------- keyboard ---------------- */
 document.addEventListener("keydown", (e) => {
   if (!S || e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+  // a question is on screen; space would otherwise deal a hand behind it
+  if (document.querySelector(".modal")) return;
   const k = e.key.toLowerCase();
 
   if (TAB === "quiz" && QUIZ) {

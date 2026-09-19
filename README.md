@@ -289,11 +289,16 @@ That has a real consequence: as a shoe gets used up, the right play sometimes
 changes. The app notices and tells you when the cards disagree with the chart.
 It has no table of deviations in it — it rediscovers them.
 
-It also means the number of other players at the table matters honestly. They
-don't change which move is right for your hand — nothing about someone else's
-cards can — but they burn through the shoe faster, so the mix of what's left
-drifts further. Set the shuffling-machine option in Setup and watch that effect
-disappear completely, which is exactly why casinos bought them.
+It also means the number of other players at the table matters honestly. How they
+choose to play cannot cost you anything over time — a bad player at third base is
+as likely to help you as hurt you, and that is the one part of the folklore that
+is simply wrong. The cards are a different matter: every card they pull is a card
+you will not see, and on a shoe that has drifted far enough the right play does
+move. Sixteen against a ten is a hit on a fresh shoe and a stand once enough
+small cards are gone, and this engine finds that from the cards rather than from
+a table of deviations. More players also burn the shoe faster, so the drift goes
+further before the shuffle. Set the shuffling-machine option in Setup and watch
+the whole effect disappear, which is exactly why casinos bought them.
 
 ## Dealing, as a real table does it
 

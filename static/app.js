@@ -2375,9 +2375,10 @@ function viewSetup() {
 
     '<div class="panel" style="margin-top:16px"><div class="pbody">' +
     '<div class="note"><b>What the number of players actually changes.</b> ' +
-    "Not your correct play. Other people’s cards never affect which move is right for your hand " +
-    "— if anyone tells you a bad player at third base cost them the hand, they are wrong. What it " +
-    "does change is how quickly the shoe gets used up, and therefore how far the mix of remaining cards " +
+    "Not how well they play. A bad player at third base cannot cost you anything over time: " +
+    "whether they take a card or leave it is as likely to help you as hurt you, and anyone who " +
+    "blames them for a hand is remembering the times it went badly. What the cards themselves do " +
+    "change is how quickly the shoe gets used up, and therefore how far the mix of remaining cards " +
     'drifts from normal. That drift is the whole basis of <span class="gt" data-term="true count">counting</span>. ' +
     "Set the reshuffling option to a shuffling machine and it stops mattering entirely, which is exactly " +
     "why casinos bought them.</div>" +

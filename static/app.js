@@ -323,16 +323,34 @@ function sessionHistoryCard() {
     sessionTable(list.slice(0, 8)) + "</div></div>";
 }
 
-const cardEl = (c, down) =>
-  down
-    ? '<div class="card down"></div>'
-    : '<div class="card' + (c.red ? " red" : "") + '"><i>' + c.suit + "</i>" +
-      (c.rank === "10" ? "10" : c.rank) + "</div>";
+/* ---------------- dealing ----------------
+   Cards used to animate on every render, so taking one card re-dealt the whole
+   hand. ONSCREEN remembers how many each spot had last time; only the ones past
+   that are new, and only those slide in from the shoe. A spot that shrinks is a
+   fresh hand, so everything in it counts as new again. */
+let ONSCREEN = {};
+let HOLE_WAS_HIDDEN = true;      // so the hole card can be turned over, not swapped
+
+function freshFrom(spot, n) {
+  const before = ONSCREEN[spot] || 0;
+  ONSCREEN[spot] = n;
+  return n < before ? 0 : before;
+}
+
+const cardEl = (c, down, fresh, order, flip) => {
+  const cls = "card" + (down ? " down" : c && c.red ? " red" : "") +
+    (fresh ? " fresh" : flip ? " flip" : "");
+  const delay = fresh && order ? ' style="animation-delay:' + order * 110 + 'ms"' : "";
+  return '<div class="' + cls + '"' + delay + ">" +
+    (down ? "" : '<i>' + c.suit + "</i>" + c.rank) + "</div>";
+};
 const backEl = () => '<div class="card down pending"></div>';
 /* A ten is a ten. It used to be abbreviated to "T" to fit the small card, which
    reads as a rank that does not exist. The card is wider now instead. */
-const miniEl = (c) =>
-  '<div class="mc' + (c.red ? " red" : "") + (c.rank === "10" ? " ten" : "") + '">' +
+const miniEl = (c, fresh, order) =>
+  '<div class="mc' + (c.red ? " red" : "") + (c.rank === "10" ? " ten" : "") +
+  (fresh ? " fresh" : "") + '"' +
+  (fresh && order ? ' style="animation-delay:' + order * 90 + 'ms"' : "") + ">" +
   c.rank + "</div>";
 
 /* ---------------- the count ----------------
@@ -504,7 +522,15 @@ function drawTable() {
   /* dealer */
   h +=
     '<div class="dealer-zone"><div class="zlab">DEALER</div>' +
-    '<div class="hand-row">' + (d.cards.length ? d.cards.map((c, i) => cardEl(c, d.hole_hidden && i === 1)).join("") : "") + "</div>" +
+    '<div class="hand-row">' + (d.cards.length
+      ? (() => { const b = freshFrom("dealer", d.cards.length);
+                 // the hole card is not a new card, it is the same one turned over
+                 const turned = HOLE_WAS_HIDDEN && !d.hole_hidden;
+                 HOLE_WAS_HIDDEN = d.hole_hidden;
+                 return d.cards.map((c, i) =>
+                   cardEl(c, d.hole_hidden && i === 1, i >= b, i - b,
+                          turned && i === 1)).join(""); })()
+      : "") + "</div>" +
     (d.cards.length
       // the upcard label names a card sitting face up, so it is never withheld;
       // only the dealer's finished total is
@@ -538,7 +564,10 @@ function drawTable() {
       const drop = Math.round(off * off * 16);        // follow the curve down and away
       return '<div class="seat' + (s.bust ? " bustd" : "") +
         '" style="transform:translateY(' + drop + 'px)">' +
-        '<div class="spot"><div class="mini">' + s.cards.map(miniEl).join("") + "</div></div>" +
+        '<div class="spot"><div class="mini">' + (() => {
+          const b = freshFrom("seat" + i, s.cards.length);
+          return s.cards.map((c, j) => miniEl(c, j >= b, j - b)).join("");
+        })() + "</div></div>" +
         '<div class="slab">SEAT ' + (i + 1) + "</div>" +
         '<div class="stot">' + (s.cards.length ? (s.bust ? "bust" : seatTotal(s)) : "—") +
         "</div></div>";
@@ -557,7 +586,10 @@ function drawTable() {
       return '<div class="spot' + (x.active ? " live" : "") + (x.result ? " over" : "") +
         (waiting ? " waiting" : "") + '">' +
         '<div class="spot-head">' + head + "</div>" +
-        '<div class="hand-row">' + x.cards.map((c) => cardEl(c)).join("") +
+        '<div class="hand-row">' + (() => {
+          const b = freshFrom("hand" + i, x.cards.length);
+          return x.cards.map((c, j) => cardEl(c, false, j >= b, j - b)).join("");
+        })() +
         (waiting ? backEl() : "") + "</div>" +
         '<div style="text-align:center">' +
         (waiting

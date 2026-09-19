@@ -111,7 +111,7 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 .card{width:52px;height:74px;border-radius:6px;background:linear-gradient(160deg,#fbf8f0,#e9e3d3);
   color:var(--card-ink);border:1px solid #b9b19c;position:relative;flex:0 0 auto;
   display:flex;align-items:center;justify-content:center;font-family:var(--serif);
-  font-size:24px;font-weight:700;box-shadow:0 2px 5px rgba(0,0,0,.35);animation:deal .17s ease-out}
+  font-size:24px;font-weight:700;box-shadow:0 2px 5px rgba(0,0,0,.35)}
 .card.red{color:var(--card-red)}
 .card i{position:absolute;top:3px;left:5px;font-style:normal;font-size:11px;font-family:var(--sans);font-weight:700}
 .card.down{background:repeating-linear-gradient(45deg,#7d2f28,#7d2f28 4px,#6b2823 4px,#6b2823 8px);
@@ -123,8 +123,29 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
   border:1px solid #b9b19c;flex:0 0 auto;box-shadow:0 1px 2px rgba(0,0,0,.35)}
 .mc.red{color:var(--card-red)}
 .mc.ten{font-size:9.5px;letter-spacing:-.4px}
-@keyframes deal{from{opacity:0;transform:translateY(-10px) rotate(-2deg)}to{opacity:1;transform:none}}
-@media(prefers-reduced-motion:reduce){.card{animation:none}}
+/* Cards come off the shoe, which sits at the top right of the felt, so they
+   arrive from up and to the right rather than fading in where they land. They
+   land face down-ish and square up, the way one does when it is slid across
+   felt. Only cards that are actually new carry .fresh, so hitting deals one
+   card instead of re-dealing the hand. */
+@keyframes deal{
+  0%{opacity:0;transform:translate(var(--dx,150px),var(--dy,-105px)) rotate(-16deg) scale(.9)}
+  55%{opacity:1}
+  100%{opacity:1;transform:none}
+}
+.card.fresh{animation:deal .38s cubic-bezier(.22,.72,.28,1) backwards}
+.mc.fresh{animation:deal .32s cubic-bezier(.22,.72,.28,1) backwards;--dx:90px;--dy:-70px}
+/* the dealer sits nearer the shoe than you do */
+.dealer-zone .card.fresh{--dx:110px;--dy:-55px}
+.hero .card.fresh{--dx:190px;--dy:-190px}
+/* The hole card is not a new card arriving, it is the same one being turned
+   over, so it rotates on the spot rather than sliding in from the shoe. */
+@keyframes turnover{
+  0%{transform:rotateY(88deg) scale(.97)}
+  100%{transform:none}
+}
+.card.flip{animation:turnover .3s ease-out}
+@media(prefers-reduced-motion:reduce){.card.fresh,.mc.fresh,.card.flip{animation:none}}
 
 /* ---------------- verdict + controls ---------------- */
 .verdict{margin-top:12px;padding:11px 14px;border-radius:8px;border-left:3px solid var(--line);
@@ -467,21 +488,46 @@ table.chart td.k3{box-shadow:inset 0 0 0 2px var(--good)}
 .verdict.ixv h3{color:var(--warn)}
 .verdict.ixv .fine{opacity:.6;font-size:11px;margin-top:6px}
 
-/* ---------------- the discard tray ----------------
-   Two stacks of card edges: what is left in the shoe, and what has been played.
-   Deliberately unlabelled with any number — judging the depth by eye is the
-   skill, and a percentage next to it would make the eye redundant. */
-.shoebar .trays{display:flex;align-items:flex-end;gap:5px;padding-bottom:1px}
-.shoebar .tray{width:30px;height:46px;position:relative;border-radius:2px;
-  background:rgba(0,0,0,.34);box-shadow:inset 0 0 0 1px rgba(0,0,0,.4);
-  display:block;overflow:hidden}
-.shoebar .tray i{position:absolute;left:0;right:0;bottom:0;display:block;
-  background-image:repeating-linear-gradient(to top,
-    var(--bone) 0, var(--bone) 1.5px, rgba(0,0,0,.42) 1.5px, rgba(0,0,0,.42) 3px);
-  box-shadow:inset 0 0 0 1px rgba(0,0,0,.3);
-  transition:height .45s ease}
-.shoebar .tray.shoe i{opacity:.85}
-.shoebar .tray.disc i{opacity:.5;filter:saturate(.4)}
+/* ---------------- the shoe and the discard tray ----------------
+   Two pieces of hardware rather than two bars. The shoe is a wedge with the
+   undealt cards standing in it and a mouth at the front where they come out;
+   the discard tray is an open holder with the played cards lying flat and
+   stacking up. Both are unlabelled with any number on purpose - judging the
+   depth by eye is the skill, and a figure beside it would make the eye
+   redundant. */
+.shoebar .trays{display:flex;align-items:flex-end;gap:9px;padding-bottom:1px}
+.shoebar .tray{width:34px;height:48px;position:relative;display:block;
+  border-radius:3px 3px 4px 4px}
+
+/* the plastic body of each piece */
+.shoebar .tray::before{content:"";position:absolute;inset:0;border-radius:inherit;
+  background:linear-gradient(150deg,#2b3330,#1b2220 60%,#141a19);
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.55), 0 1px 3px rgba(0,0,0,.45)}
+
+/* the cards inside it */
+.shoebar .tray i{position:absolute;left:4px;right:4px;bottom:4px;display:block;
+  border-radius:1px;transition:height .5s cubic-bezier(.3,.8,.4,1);
+  box-shadow:0 0 0 1px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.22)}
+
+/* the shoe: cards stand on edge, so the grain runs across them, and the
+   whole thing leans the way a real one does */
+.shoebar .tray.shoe{transform:perspective(60px) rotateY(-9deg)}
+.shoebar .tray.shoe i{background-image:repeating-linear-gradient(to top,
+    #e8e2d2 0, #e8e2d2 1.5px, rgba(0,0,0,.5) 1.5px, rgba(0,0,0,.5) 2.6px)}
+/* the mouth the cards come out of */
+.shoebar .tray.shoe::after{content:"";position:absolute;left:2px;right:2px;bottom:1px;
+  height:5px;border-radius:0 0 4px 4px;
+  background:linear-gradient(to bottom,rgba(0,0,0,.65),rgba(0,0,0,.3));
+  box-shadow:inset 0 1px 1px rgba(0,0,0,.6)}
+
+/* the discard tray: played cards lie flat, face down, so they read as a
+   duller stack than the live shoe */
+.shoebar .tray.disc i{background-image:repeating-linear-gradient(to top,
+    #b9b2a2 0, #b9b2a2 1.4px, rgba(0,0,0,.55) 1.4px, rgba(0,0,0,.55) 2.8px);
+  filter:saturate(.35) brightness(.92)}
+.shoebar .tray.disc::after{content:"";position:absolute;left:0;right:0;top:0;height:6px;
+  border-radius:3px 3px 0 0;background:linear-gradient(to bottom,rgba(0,0,0,.45),transparent)}
+
 .shoebar .tlab{font-size:8px;letter-spacing:.1em;opacity:.45;margin-right:3px}
 .shoebar .tnum{margin-left:7px;opacity:.6}
 .shoebar .cask.thin{margin-left:9px;font-weight:400;opacity:.8}

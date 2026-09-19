@@ -254,6 +254,78 @@ def test_indices_against_the_engine(shoes=1200, tolerance=1.0):
           all(abs(p["crossing"] - p["index"]) <= 1.0 for p in C.ILLUSTRIOUS_18))
 
 
+def test_verdict_is_count_aware():
+    """
+    The headline a player reads has to be graded on the count.
+
+    This is the bug that shipped: the index grading went into the analysis but
+    the verdict still came from the chart, so correctly hitting 12 v 5 at a
+    true count of -3.7 was reported as "you should have stood". A trainer that
+    marks a correct deviation wrong teaches the opposite of what it is for.
+    """
+    from game import Table
+    print("\nthe verdict a player actually reads")
+
+    def card(r):
+        return {"rank": r, "suit": "S", "red": False}
+
+    def rigged(player, up, running):
+        t = Table(config={"decks": 6, "others": 0, "table_min": 10})
+        t.bankroll = 500.0
+        t.bet = 10.0
+        t.dealer = [card(up), card("7")]
+        t.hole_hidden = True
+        t.hands = [t._new_hand([card(c) for c in player], 10.0)]
+        t.active = 0
+        t.phase = "play"
+        t.running_count = running
+        t.dealt = 312 - 170          # ~3.27 decks left, as in the reported hand
+        return t
+
+    t = rigged(["7", "5"], "5", -12)
+    tc = t.true_count()
+    check("the reported hand reproduces a true count near -3.7",
+          -4.0 < tc < -3.3, "%+.2f" % tc)
+
+    a = t.analyse(t.hands[0], "H")
+    check("basic strategy still says stand", a["chart_move"] == "S")
+    check("the count says hit", a["count_move"] == "H")
+    check("and it is flagged as a deviation", a["index_deviation"])
+
+    t.act("H")
+    v = t.verdict
+    check("hitting is marked CORRECT in the verdict", v["count_correct"] is True)
+    check("the verdict's 'should' is the count's move", v["count_should"] == "H")
+    check("the chart move is still carried, for the explanation", v["should"] == "S")
+    check("and the chart-only flag still says wrong, for the history",
+          v["correct"] is False)
+
+    # the other direction: playing the chart when the count says otherwise
+    t2 = rigged(["7", "5"], "5", -12)
+    t2.act("S")
+    check("standing there is marked WRONG", t2.verdict["count_correct"] is False)
+
+    # and a square with no index is unaffected
+    t3 = rigged(["7", "6"], "6", -12)
+    t3.act("S")
+    check("13 v 6 has no index, so the chart still rules",
+          t3.verdict["count_correct"] is True and not t3.verdict["index_deviation"])
+
+    # insurance carries the same fields
+    t4 = rigged(["10", "9"], "A", 30)
+    t4.dealt = 312 - 170
+    t4.phase = "insurance"
+    t4.insurance(True)
+    check("insurance taken at a high count is marked correct",
+          t4.verdict["count_correct"] is True)
+    t5 = rigged(["10", "9"], "A", 30)
+    t5.dealt = 312 - 170
+    t5.phase = "insurance"
+    t5.insurance(False)
+    check("and declining it there is marked wrong",
+          t5.verdict["count_correct"] is False)
+
+
 if __name__ == "__main__":
     test_tags()
     test_true_count()
@@ -263,6 +335,7 @@ if __name__ == "__main__":
     test_ramp()
     test_deck_estimates()
     test_grading()
+    test_verdict_is_count_aware()
     test_indices_against_the_engine()
     print("\n%d passed, %d failed" % (len(PASS), len(FAIL)))
     if FAIL:

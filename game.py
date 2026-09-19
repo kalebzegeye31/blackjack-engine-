@@ -467,12 +467,22 @@ class Table:
         hand = self.hands[self.active]
         analysis = self.analyse(hand, move)
         self.last_analysis = analysis
+        # The headline is graded against the count, not the chart. On the
+        # eighteen squares where a big count changes the answer, playing the
+        # chart is the mistake - and being told "you should have stood" for a
+        # correct deviation teaches the exact habit this app exists to break.
+        # `correct` stays chart-only because the history and the accuracy
+        # figure are built on it.
         self.verdict = {
             "correct": analysis["correct"], "chosen": move,
             "should": analysis["chart_move"], "row": analysis["row"],
             "up": R.up_label(analysis["up"]),
             "fallback": analysis["fallback"], "kind": "play",
             "hand_index": self.active, "hand_count": len(self.hands),
+            "count_correct": analysis["count_correct"],
+            "count_should": analysis["count_move"],
+            "index_deviation": analysis["index_deviation"],
+            "index_key": (analysis["index"] or {}).get("key"),
         }
         self.session["decisions"] += 1
         self.session["correct"] += 1 if analysis["correct"] else 0

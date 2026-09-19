@@ -497,21 +497,47 @@ function drawTable() {
   const v = S.verdict;
   if (v) {
     if (v.kind === "insurance") {
-      h += '<div class="verdict ' + (v.correct ? "yes" : "no") + '"><h3>' +
-        (v.correct
-          ? "Right call — you turned it down"
-          : v.even_money ? "Even money is the same bad bet" : "Never take insurance") + "</h3>" +
-        "<p>It is a side bet on the dealer’s face-down card, not on your hand." +
+      /* Insurance is the most valuable index play there is, and the one place
+         a counter and a basic-strategy player give opposite answers often
+         enough to matter. Graded on the count. */
+      const iok = v.count_correct != null ? v.count_correct : v.correct;
+      const wanted = v.index_deviation;          // the count called for taking it
+      h += '<div class="verdict ' + (iok ? "yes" : "no") + '"><h3>' +
+        (iok
+          ? (wanted ? "Right — insurance is on at this count"
+                    : "Right call — you turned it down")
+          : (wanted ? "You should have taken it"
+                    : v.even_money ? "Even money is the same bad bet"
+                                   : "Never take insurance")) + "</h3>" +
+        "<p>It is a side bet on the dealer’s face-down card, not on your hand. " +
+        (wanted
+          ? "It needs the hole card to be a ten more than a third of the time, and the shoe is " +
+            "ten-rich enough right now that it is. This is the one bet on the table that a count " +
+            "turns from bad to good, and it is worth more than every playing deviation combined."
+          : "It needs the hole card to be a ten more than a third of the time, and only four ranks " +
+            "in thirteen are. Without a count rich enough to change that, it is the worst bet here.") +
         (v.even_money
           ? " Taking even money on a blackjack is insurance wearing a different hat: it trades a hand "
             + "that wins 1.5 times most of the time for one that wins 1 time always, and comes out behind."
           : "") + "</p></div>";
     } else {
-      h += '<div class="verdict ' + (v.correct ? "yes" : "no") + '"><h3>' +
-        (v.correct ? "Right — " + MOVE[v.chosen] : "You should have " + PAST[v.should]) + "</h3>" +
+      /* Graded against the count, not the chart. On the squares where a high
+         or low count moves the answer, playing the chart IS the mistake, and
+         marking a correct deviation wrong would teach the opposite of the
+         thing this is for. */
+      const ok = v.count_correct != null ? v.count_correct : v.correct;
+      const should = v.count_should || v.should;
+      const dev = !!v.index_deviation;
+      h += '<div class="verdict ' + (ok ? "yes" : "no") + '"><h3>' +
+        (ok ? "Right — " + MOVE[v.chosen] + (dev ? ", against the chart" : "")
+            : "You should have " + PAST[should]) + "</h3>" +
         "<p>" + (v.hand_count > 1 ? "Hand " + (v.hand_index + 1) + " of " + v.hand_count + ": " : "") +
-        cap(v.row) + " against a dealer " + v.up + " → <kbd>" + MOVE[v.should] + "</kbd>" +
-        (v.correct ? "" : ". You chose <kbd>" + MOVE[v.chosen] + "</kbd>") + "." +
+        cap(v.row) + " against a dealer " + v.up + " → <kbd>" + MOVE[should] + "</kbd>" +
+        (ok ? "" : ". You chose <kbd>" + MOVE[v.chosen] + "</kbd>") + "." +
+        (dev
+          ? " The chart says <kbd>" + MOVE[v.should] + "</kbd> here, but this is an index " +
+            "play and the count has moved it."
+          : "") +
         (v.fallback ? " The chart wants a double here, but you can only double on your first two cards." : "") +
         "</p></div>";
     }

@@ -516,13 +516,25 @@ table.chart td.k3{box-shadow:inset 0 0 0 2px var(--good)}
     inset 1px 0 0 rgba(255,255,255,.06),
     0 2px 6px rgba(0,0,0,.5)}
 
-/* the cards inside it */
+/* The cards inside it.
+
+   A card is about a third of a millimetre thick, so six decks stand roughly
+   four inches high and one card is a quarter of a pixel here. Individual edges
+   cannot be drawn at this size and pretending otherwise just makes a barcode.
+   What a stack of cards actually looks like from across a table is a band of
+   ivory with fine darker striations through it, brighter along the top edge
+   where the last card catches the light and sinking into shadow where it meets
+   the floor of the holder. That is what these are.
+
+   The striation period is deliberately not a fraction of a deck. Any spacing
+   that lined up with 52 cards would turn the texture into a scale you could
+   count instead of judge, which is the one thing the tray must not become. */
 .shoebar .tray i{position:absolute;left:5px;right:5px;bottom:5px;display:block;
   border-radius:1px;background-color:#efe9da;
   transition:height .55s cubic-bezier(.3,.8,.4,1);
   box-shadow:0 0 0 1px rgba(0,0,0,.55),
-    inset 0 1px 0 rgba(255,255,255,.4),
-    inset 0 -2px 3px rgba(0,0,0,.3)}
+    inset 0 1px 0 rgba(255,255,255,.45),
+    inset 0 -3px 4px rgba(0,0,0,.34)}
 
 /* the shoe: cards stand on edge and the whole thing leans, the way one does
    sitting on the dealer's right */
@@ -531,40 +543,35 @@ table.chart td.k3{box-shadow:inset 0 0 0 2px var(--good)}
    foreshortens one of them and breaks that comparison. */
 .shoebar .tray.shoe{transform:perspective(190px) rotateY(-7deg)}
 .shoebar .tray.shoe i{background-image:
-  linear-gradient(to top,transparent 0 78%,rgba(255,255,255,.3) 100%),
-  repeating-linear-gradient(to top,rgba(0,0,0,.30) 0 .5px,transparent .5px 2px),
-  repeating-linear-gradient(to top,rgba(0,0,0,.14) 0 1px,transparent 1px 9px)}
+  linear-gradient(to bottom,rgba(255,255,255,.5) 0 1px,transparent 1px 4px),
+  linear-gradient(100deg,rgba(0,0,0,.16) 0 14%,transparent 42%,rgba(255,255,255,.1) 100%),
+  repeating-linear-gradient(to top,rgba(0,0,0,.28) 0 .5px,transparent .5px 1.7px)}
 /* the mouth they come out of */
 .shoebar .tray.shoe::after{content:"";position:absolute;left:3px;right:3px;bottom:1px;
   height:6px;border-radius:0 0 5px 5px;
   background:linear-gradient(to bottom,rgba(0,0,0,.72),rgba(0,0,0,.28));
   box-shadow:inset 0 2px 2px rgba(0,0,0,.7)}
 
-/* the discard tray: played cards lie flat and face down, so the stack reads
-   duller and flatter than the live shoe */
+/* The discard tray: the same cards, lying flat and face down. They are pushed
+   in a few at a time rather than stacked square, so the edges sit slightly
+   less true than the ones still standing in the shoe and the whole band reads
+   a shade flatter. */
 .shoebar .tray.disc i{background-image:
-  linear-gradient(to top,transparent 0 82%,rgba(255,255,255,.17) 100%),
-  repeating-linear-gradient(to top,rgba(0,0,0,.34) 0 .5px,transparent .5px 1.9px),
-  repeating-linear-gradient(to top,rgba(0,0,0,.17) 0 1px,transparent 1px 12px);
-  background-color:#cdc6b6;filter:saturate(.4) brightness(.94)}
+  linear-gradient(to bottom,rgba(255,255,255,.42) 0 1px,transparent 1px 4px),
+  linear-gradient(96deg,rgba(0,0,0,.14) 0 16%,transparent 46%,rgba(255,255,255,.07) 100%),
+  repeating-linear-gradient(to top,rgba(0,0,0,.3) 0 .5px,transparent .5px 1.6px);
+  background-color:#e6dfcd}
 /* the lip of the holder, moulded into the body */
 .shoebar .tray.disc::before{background:
   linear-gradient(to bottom,rgba(0,0,0,.55) 0,transparent 8px),
   linear-gradient(103deg,rgba(255,255,255,.11) 0 11%,transparent 27%),
   linear-gradient(152deg,#333d39,#1e2624 56%,#111716)}
 
-/* A moulding line at each deck up the wall. A real tray gives you a scale
-   whether it means to or not - you learn where a deck sits on it - and without
-   one the stack is a height with nothing to measure against.
-
-   It has to be measured on the well the cards sit in, not on the outside of
-   the holder, or every mark reads a few cards high and the scale quietly lies.
-   Six marks and no numbers: reading them is still the exercise. */
-.shoebar .tray.disc::after{content:"";position:absolute;left:0;right:0;top:5px;bottom:5px;
-  pointer-events:none;
-  background:repeating-linear-gradient(to top,
-    transparent 0 calc(100% / 6 - 1px),
-    rgba(255,255,255,.15) calc(100% / 6 - 1px) calc(100% / 6))}
+/* No gradations up the wall. A real holder has none, and a marked one turns
+   judging the depth into reading a gauge - which is the single skill the
+   hidden count exists to train. The stack, the holder and your eye. */
+.shoebar .tray.disc::after{content:"";position:absolute;inset:0;pointer-events:none;
+  border-radius:inherit;box-shadow:inset 0 0 6px rgba(0,0,0,.45)}
 
 /* once the yellow card is out it sits on top of the discards, which is where
    the dealer drops it */

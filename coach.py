@@ -203,7 +203,7 @@ HARD = {
             "terms": ["hit", "bust", "upcard"],
         },
         5: {
-            "hook": "Eight or less against the dealer's worst card. Still just hit.",
+            "hook": "Eight or less against a 5. Still just hit.",
             "paragraphs": [
                 "A 5 is the second-worst card a dealer can be showing \u2014 they bust 42% of the "
                 "time. It's tempting to do something clever with that. There isn't anything "
@@ -658,7 +658,8 @@ HARD = {
                 "something you can feel, this is it.",
             ],
             "picture": "Everything that can be in your favour is in your favour at the same "
-                       "time. That happens about once every forty hands. Don't waste it.",
+                       "time. This exact pairing turns up about once in every 260 hands. "
+                       "Don't waste it.",
             "remember": "Eleven doubles against everything except an ace.",
             "terms": ["double down", "bust", "upcard"],
         },
@@ -680,12 +681,13 @@ HARD = {
             "hook": "Eleven against an 8. Double.",
             "paragraphs": [
                 "Eighteen is their most likely finish, 36% of the time. One card on an 11 beats "
-                "eighteen with any 8, 9 or ten-value card \u2014 comfortably more than half the shoe.",
+                "eighteen with any 8, 9 or ten-value card, which is 46% of the shoe, and ties "
+                "it with a 7 for 54% not losing.",
                 "The 11 row does not care very much what the dealer has. That's what makes it "
                 "the easiest row on the chart to remember.",
             ],
-            "picture": "Eleven is the only total in the game that is a favourite against every "
-                       "single upcard.",
+            "picture": "Eleven is the only hand the chart asks you to double against nine "
+                       "different upcards. It barely cares what the dealer is showing.",
             "remember": "Eleven doubles against everything except an ace.",
             "terms": ["double down", "upcard"],
         },
@@ -774,9 +776,10 @@ HARD.update({
         4: {
             "hook": "Twelve against a 4. Now stand.",
             "paragraphs": [
-                "A 4 busts 39% of the time. That is finally more than the 31% chance you break "
-                "by drawing, and that crossover is the entire reason this row starts standing "
-                "here and not a column earlier.",
+                "A 4 busts 39% of the time, and that is the first upcard where the dealer breaks "
+                "often enough to be worth waiting for with a total this weak. Standing wins "
+                "only when they bust, so a 12 needs a genuinely fragile dealer before doing "
+                "nothing beats drawing. A 2 or a 3 is not fragile enough.",
                 "You have a bad total either way. Standing just makes the dealer be the one who "
                 "has to draw out of a hole.",
             ],
@@ -1017,8 +1020,9 @@ HARD.update({
                 "Fourteen is a bad hand. Standing doesn't fix it; it just stops you making it "
                 "worse.",
             ],
-            "picture": "Once your bust chance passes the dealer's, standing wins the argument "
-                       "automatically. At 14 it has passed comfortably.",
+            "picture": "Your 46% against their 35% is what settles it here. It only settles it "
+                       "against the small cards though — against a 7 or better you hit these "
+                       "same totals, because there is no bust to wait for.",
             "remember": "Thirteen through sixteen: stand against 2 through 6, hit against 7 through ace.",
             "terms": ["stiff hand", "stand", "bust"],
         },
@@ -1376,7 +1380,7 @@ HARD.update({
         10: {
             "hook": "Sixteen against a 10. The worst cell on the chart. Hit.",
             "paragraphs": [
-                "This is the single most common losing hand in blackjack, and there is no good "
+                "No cell on the chart loses more per hand than this one, and there is no good "
                 "answer to it. The dealer's likeliest finish is twenty, 37% of the time, and "
                 "they bust only 23% of the time.",
                 "Drawing breaks you 62% of the time. Standing loses about 77% of the time. You "
@@ -1414,12 +1418,12 @@ HARD.update({
         2: {
             "hook": "Hard 17 against a 2. Stand \u2014 and stop thinking about it.",
             "paragraphs": [
-                "Seventeen is the weakest total worth keeping. Against a 2 it is roughly a "
-                "coin flip: they bust 35% of the time and beat you with 18 or better a little "
-                "less than half the time.",
-                "Drawing breaks you 69% of the time. There is no card that improves this hand "
-                "often enough to matter \u2014 a 4 is the only one that really helps, and it's one "
-                "rank in thirteen.",
+                "Seventeen is the weakest total worth keeping. Against a 2 it is close to a "
+                "coin flip: they bust 35% of the time, tie you on seventeen 14% of the time, "
+                "and beat you with 18 or better just over half the time.",
+                "Drawing breaks you 69% of the time. Only an ace, 2, 3 or 4 leaves you standing "
+                "at all \u2014 four ranks out of thirteen, which is the whole of that other 31% "
+                "\u2014 and only the 4 gets you to twenty-one.",
             ],
             "picture": "Seventeen is where the hand stops being yours to influence. Stand and "
                        "let it play out.",
@@ -1546,8 +1550,8 @@ HARD.update({
         2: {
             "hook": "Eighteen against a 2. Stand.",
             "paragraphs": [
-                "Eighteen is a real hand. Against a 2 it wins well over half the time: they "
-                "bust 35% of the time and finish below you a good chunk of the rest.",
+                "Eighteen is a real hand. Against a 2 it wins just under half the time \u2014 they "
+                "bust 35% of the time and land on seventeen 14% more \u2014 and only loses 37%.",
                 "Drawing breaks you 77% of the time. There is nothing here worth risking.",
             ],
             "picture": "Eighteen against a small card is money in the bank. Leave it in the bank.",
@@ -1584,7 +1588,7 @@ HARD.update({
                 "Drawing busts you 77% of the time. This is one of the easiest stands on the "
                 "chart.",
             ],
-            "picture": "Eighteen against a 5 wins close to three hands in five. That is a "
+            "picture": "Eighteen against a 5 wins about 54% and loses about 34%. That is a "
                        "great result in this game.",
             "remember": "Hard 17 and up always stands. There is no exception anywhere in the row.",
             "terms": ["hard hand", "stand", "bust"],
@@ -1708,7 +1712,7 @@ HARD.update({
                 "don't. Nineteen is a strong favourite.",
                 "Drawing busts you 85% of the time.",
             ],
-            "picture": "Nineteen against a small card wins about seven hands in ten. Bank it.",
+            "picture": "Nineteen against a small card wins about two hands in three. Bank it.",
             "remember": "Hard 17 and up always stands. There is no exception anywhere in the row.",
             "terms": ["hard hand", "stand", "bust"],
         },
@@ -1962,13 +1966,13 @@ SOFT = {
         2: {
             "hook": "Soft 13 against a 2. Hit.",
             "paragraphs": [
-                "A,2 is the weakest soft hand there is, and a 2 is the least weak of the "
+                "A,2 is the bottom of the soft doubling ladder, and a 2 is the least weak of the "
                 "dealer's small cards \u2014 they bust just 35% of the time. Not enough to justify "
                 "buying one card and stopping.",
                 "So hit, and keep hitting. You cannot bust: the ace drops from 11 to 1 the "
                 "moment it needs to. A draw with no downside is never wrong.",
             ],
-            "picture": "The bottom rung of the soft ladder starts at the 5. This is two "
+            "picture": "The bottom rung of the soft ladder starts at the 5. This is three "
                        "columns short of it.",
             "remember": "Soft 13 and 14 double against 5 and 6 only. Otherwise hit.",
             "terms": ["soft hand", "hit", "bust"],
@@ -3218,7 +3222,7 @@ PAIRS = {
                 "seventeen 37% of the time.",
                 "Eight is the better hand here and it costs one bet instead of two.",
             ],
-            "picture": "Two cells open, two cells shut. The 4s row is the narrowest on the "
+            "picture": "Two cells open and eight shut. The 4s row is the narrowest on the "
                        "chart.",
             "remember": "Split 4s against 5 and 6 only. Everywhere else, hit the 8.",
             "terms": ["split", "hit", "upcard"],
@@ -3583,8 +3587,10 @@ PAIRS.update({
             "paragraphs": [
                 "This one looks odd and isn't. A 7 finishes on seventeen 37% of the time, and "
                 "a hand starting on 7 beats seventeen far more often than a stiff 14 does.",
-                "There's a second quiet advantage: three of the sevens are already on the "
-                "table, which makes the dealer's seventeen slightly less likely than usual.",
+                "Do not talk yourself into a card-removal argument here: the three sevens "
+                "showing leave the shoe very slightly richer in tens, which nudges the "
+                "dealer TOWARDS seventeen, not away from it. The split stands on the "
+                "totals alone.",
             ],
             "picture": "You're not splitting to win big. You're splitting because 14 against a "
                        "7 is one of the worst places to be sitting.",
@@ -3697,7 +3703,8 @@ PAIRS.update({
                 "turns the second fact into an advantage.",
                 "Two hands, two bets, a dealer breaking nearly half the time.",
             ],
-            "picture": "The single most profitable split on the chart lives around here.",
+            "picture": "Splitting aces is the most profitable split there is by a distance. "
+                       "This is simply the best the 8s row ever gets.",
             "remember": "Always split aces and eights. Every upcard, no exceptions, including a ten.",
             "terms": ["split", "upcard", "bust"],
         },
@@ -3906,8 +3913,10 @@ PAIRS.update({
                 "Twenty beats or ties almost everything the dealer can end up with. Splitting "
                 "swaps one near-certain winner for two ordinary hands and a second bet at risk.",
                 "This is the most expensive 'brave' play in blackjack, and it's popular "
-                "precisely because it feels brave. There is no upcard that makes it right \u2014 "
-                "not a 5, not a 6, not anything.",
+                "precisely because it feels brave. Playing the chart, there is no upcard "
+                "that makes it right. A counter breaks a twenty against a 5 or a 6 and only "
+                "at a very high count \u2014 see the index chart \u2014 and it is the most "
+                "conspicuous thing you can do at a table.",
             ],
             "picture": "You already hold the second-best hand possible. Trading it for two "
                        "average ones is selling a winning ticket to buy two scratch cards.",

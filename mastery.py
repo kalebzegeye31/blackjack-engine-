@@ -45,6 +45,15 @@ COST_SCALE = 0.08   # EV given up, in bets, at which a cell counts double
 
 _DECAY = 0.5 ** (1.0 / HALF_LIFE)
 
+# The most mastery a cell can ever report. Sightings age off geometrically, so
+# the recency-weighted count tops out at 1/(1-_DECAY) rather than growing
+# forever, and PRIOR_N still pulls that towards a coin flip. Even a spotless
+# record lands near 0.94, never 1.0, so a "you have this one" cutoff has to be
+# set against this number. Setting one against 1.0 makes it unreachable, and a
+# filter nothing can pass is a filter that does nothing.
+CEILING = ((1.0 / (1.0 - _DECAY)) + PRIOR_N * 0.5) / ((1.0 / (1.0 - _DECAY)) + PRIOR_N)
+MASTERED = 0.978 * CEILING   # ~0.92: about twenty clean sightings in a row
+
 
 class Cell:
     """One square of the chart, and your record on it."""
@@ -213,7 +222,7 @@ class Profile:
     # ---------------- what to work on ----------------
     def drill(self, limit=12, min_seen=1):
         """The cells costing you the most, worst first."""
-        live = [c for c in self.cells.values() if c.n >= min_seen and c.mastery < 0.95]
+        live = [c for c in self.cells.values() if c.n >= min_seen and c.mastery < MASTERED]
         live.sort(key=lambda c: c.leak, reverse=True)
         return [c.as_dict(self.rules) for c in live[:limit]]
 
@@ -295,7 +304,11 @@ def _should(cell, rules):
 
 
 def _stiff_low(c, rules):
-    return c.section == "hard" and 12 <= c.row <= 16 and c.up <= 6
+    # Only the squares the chart actually stands on. Hard 12 against a 2 or a 3
+    # is a hit, so counting it here would put a correct play in a pattern that
+    # tells you to stop hitting.
+    return (c.section == "hard" and 12 <= c.row <= 16 and c.up <= 6
+            and _should(c, rules) == "S")
 
 
 def _stiff_high(c, rules):
@@ -320,24 +333,29 @@ def _soft_hand(c, rules):
 
 _PATTERNS = [
     ("stiff_low", _stiff_low,
-     "Stiff hands against a weak dealer. On 12 to 16 against a 2 to 6 the dealer is the "
-     "one in trouble, so you stand and let them break. Taking a card here is the single "
-     "most common way people give the game away."),
+     "Stiff hands against a weak dealer. On these hands the dealer is the one who has to "
+     "draw, so you stand on your bad hand and let them break theirs. The two exceptions are "
+     "hard 12 against a 2 and against a 3, where the dealer breaks least often of the weak "
+     "cards and you take the card instead."),
     ("stiff_high", _stiff_high,
      "Stiff hands against a strong dealer. On 12 to 16 against a 7 or better, standing "
      "loses slowly and hitting loses slightly less slowly. Both are bad; take the less bad one."),
     ("doubles", _missed_double,
-     "Doubles you did not take. Doubling is the only time the house lets you put more money "
-     "out after seeing a card. Skipping it is a pure giveaway, not a safe choice."),
+     "Doubles you did not take. Doubling and splitting are the two ways to get more money "
+     "out once you have seen a card, and the chart only calls for them when the extra bet "
+     "is the profitable one. Skipping it is a pure giveaway, not a safe choice."),
     ("splits", _should_split,
-     "Pairs you did not split. Splitting turns one bad hand into two live ones — the whole "
-     "point of splitting 8s against a 10 is that 16 is hopeless and two 8s are not."),
+     "Pairs you did not split. Splitting trades one bad hand for two better ones — against a "
+     "10 you still expect to lose on 8,8, just about five cents on the dollar less than you "
+     "lose sitting on the 16. Splitting is often damage control rather than a winning play."),
     ("oversplit", _should_not_split,
      "Pairs you split that you should have kept together. Two tens is a 20 and two fives is "
-     "an 11 you should double — splitting either one throws away a made hand."),
+     "an 11 you should double — splitting either one throws away a made hand. Tens against a "
+     "5 or a 6 do become a split at a high count, but that is an index play, not the chart."),
     ("soft", _soft_hand,
      "Soft hands. With an ace counting as eleven you cannot break with one card, so the "
-     "cautious play is the wrong one. Soft 17 is not a 17; it is a hand that cannot lose by drawing."),
+     "cautious play is the wrong one. Soft 17 is not a 17: against every single upcard, taking "
+     "a card beats standing on it."),
 ]
 
 

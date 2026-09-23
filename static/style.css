@@ -185,7 +185,7 @@ kbd{background:rgba(255,255,255,.09);border-radius:3px;padding:1px 5px;font-fami
 .insline b{color:var(--text)}
 
 /* ---------------- panels ---------------- */
-.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;min-width:0}
 .panel.side{margin-top:0}
 .phead{padding:10px 15px;border-bottom:1px solid var(--line);display:flex;
   justify-content:space-between;align-items:baseline;gap:10px}
@@ -309,7 +309,12 @@ select:disabled{opacity:.5}
 /* ---------------- chart ---------------- */
 .chartwrap{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px;align-items:start;
   max-width:1300px;margin:0 auto}
-@media(max-width:1080px){.chartwrap{grid-template-columns:1fr}}
+/* minmax(0,1fr), not 1fr. A bare 1fr track has an automatic minimum, so the
+   panel in it refuses to shrink below the chart table's own width and the whole
+   page scrolls sideways instead of the table scrolling inside its wrapper. The
+   .cscroll around the table was already there and simply never got the chance
+   to work. Same reason .panel needs min-width:0 as a flex and grid child. */
+@media(max-width:1080px){.chartwrap{grid-template-columns:minmax(0,1fr)}}
 .chartbar{display:flex;justify-content:space-between;align-items:center;gap:14px;
   flex-wrap:wrap;margin-bottom:14px}
 .legend{display:flex;gap:12px;flex-wrap:wrap}

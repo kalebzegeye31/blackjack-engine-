@@ -27,6 +27,57 @@ If it says the port is already in use, that is almost always this same program
 still running from earlier — it says so, gives you the process to stop, and
 suggests a free port if something else has it.
 
+## Running it somewhere that stays on
+
+A trainer is only useful when it is reachable, and a laptop that sleeps is not.
+Anything that runs Python will do. The app needs no changes for it — it is the
+same `python server.py`.
+
+Reaching it from a phone is the part worth doing carefully, because this app has
+no passwords. That is a reasonable choice while it is listening on loopback and
+the wrong one the moment it is not. Do not put it on the open internet, and in
+particular do not reach for `tailscale funnel`, which is exactly that.
+
+**Tailscale, with the app still on loopback.** Install Tailscale on the machine
+and on the phone, then:
+
+```
+python server.py --no-browser      # still 127.0.0.1 only
+tailscale serve --bg 8000
+```
+
+Tailscale terminates the connection itself and proxies to loopback, so the
+server is never exposed to the local network, no firewall rule is needed, and
+the phone gets HTTPS. `tailscale serve status` prints the URL to open —
+`https://<machine>.<tailnet>.ts.net`. Only your own devices can reach it.
+
+**On the same wifi, without Tailscale**, `python server.py --host 0.0.0.0` and
+`http://<machine-ip>:8000` works and takes ten seconds, but it is open to
+everyone on that network. At home that is one thing; a hotel or a casino is
+another.
+
+### Starting it at boot on Windows
+
+Task Scheduler, one task:
+
+- **Trigger:** at startup
+- **Action:** start a program
+  - **Program:** `pythonw.exe` — the windowless build, so no console sits open
+  - **Arguments:** `server.py --no-browser`
+  - **Start in:** the folder you cloned into
+- **General:** run whether the user is logged on or not
+
+`tailscale serve --bg` already persists across reboots, so it needs no task of
+its own.
+
+### Taking your history with you
+
+`blackjack.db` is the whole of it — accounts, sessions, every decision graded.
+It is deliberately not in git: it is yours, and two machines committing it would
+overwrite each other. Copy it next to `server.py` before the first run and
+everything comes across. Leave it behind and you start clean, which is also a
+perfectly good answer.
+
 ## How the money works
 
 An account starts with **nothing**. There is no automatic top-up.
